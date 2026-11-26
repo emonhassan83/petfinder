@@ -30,7 +30,8 @@ Petfinder connects loving families with rescue pets needing forever homes. Featu
 - [Getting Started](#-getting-started)
   - [Prerequisites](#prerequisites)
   - [Backend Setup (Server)](#1-backend-setup-server)
-  - [Frontend Setup (Client)](#2-frontend-setup-client)
+  - [Portal Setup (Web)](#2-portal-setup-web)
+  - [Mobile App Setup (Expo)](#3-mobile-app-setup-expo)
 - [Environment Variables](#-environment-variables)
 - [Database Management (Prisma)](#-database-management-prisma)
 - [Security & Zero-Vulnerability Guarantee](#-security--zero-vulnerability-guarantee)
@@ -64,7 +65,7 @@ Petfinder operates as a decoupled client-server architecture with strict separat
 
 ```mermaid
 graph TD
-    subgraph Client ["Frontend (Next.js 16 App Router)"]
+    subgraph Client ["Portal (Next.js 16 App Router)"]
         UI["Material UI & Tailwind CSS"]
         State["Redux Toolkit & RTK Query"]
         AuthCtx["JWT Session & Server Actions"]
@@ -106,6 +107,7 @@ For an in-depth breakdown of transaction flows, state machines, and sequence dia
 | Layer | Technologies |
 | :--- | :--- |
 | **Frontend** | **Next.js 16** (App Router, Turbopack), **React 19**, **TypeScript**, **Material UI (MUI)**, **Tailwind CSS**, **Redux Toolkit**, **React Hook Form**, **Zod** |
+| **Mobile** | **Expo SDK 58**, **React Native 0.88**, **React Navigation 7**, **AsyncStorage** |
 | **Backend** | **Node.js**, **Express.js**, **TypeScript**, **Prisma ORM**, **PostgreSQL**, **Bcrypt.js**, **JSON Web Tokens (JWT)**, **Nodemailer**, **Zod 4** |
 | **DevOps & Tooling** | **ESLint**, **PostCSS**, **Git**, **Turbopack Compiler**, **Prisma Studio** |
 
@@ -115,7 +117,7 @@ For an in-depth breakdown of transaction flows, state machines, and sequence dia
 
 ```text
 petfinder/
-├── client/                     # Next.js 16 Frontend Application
+├── portal/                     # Next.js 16 web portal + admin dashboard
 │   ├── src/
 │   │   ├── app/                # App Router (pages, layouts, route groups)
 │   │   ├── components/         # Shared & reusable UI components
@@ -124,8 +126,14 @@ petfinder/
 │   │   ├── types/              # TypeScript interface & type definitions
 │   │   └── utils/              # Client-side utility functions & formatters
 │   ├── public/                 # Static assets, logos, and images
+│   ├── .env.example
 │   ├── package.json
 │   └── tsconfig.json
+│
+├── app/                        # Expo (React Native) mobile app, users only
+│   ├── src/                    # screens, components, theme, mock data, state
+│   ├── .env.example
+│   └── App.tsx
 │
 ├── server/                     # Express.js & TypeScript Backend API
 │   ├── prisma/
@@ -139,12 +147,14 @@ petfinder/
 │   │   │   └── shared/         # Shared Prisma client, helpers, and constants
 │   │   ├── app.ts              # Express application setup & middleware stack
 │   │   └── server.ts           # Server bootstrap & connection lifecycle
+│   ├── .env.example
 │   ├── package.json
 │   └── tsconfig.json
 │
 ├── docs/                       # Project Documentation
 │   ├── API_GUIDELINES.md       # Complete REST API specifications & endpoints
-│   └── ARCHITECTURE.md         # System design, data models & sequence flows
+│   ├── ARCHITECTURE.md         # System design, data models & sequence flows
+│   └── plan.md                 # Delivery plan, decisions and phase status
 ├── .gitignore                  # Global Git ignore rules
 └── README.md                   # Project overview & quickstart
 ```
@@ -176,27 +186,10 @@ Ensure you have the following installed locally:
    ```
 
 3. **Configure environment variables**:
-   Create a `.env` file in `server/` using the template below:
-   ```env
-   NODE_ENV=development
-   PORT=5000
-   DATABASE_URL="postgresql://username:password@localhost:5432/petfinder_db?schema=public"
-
-   # JWT Secrets
-   JWT_SECRET=your_super_secret_jwt_access_key
-   EXPIRES_IN=7d
-   REFRESH_TOKEN_SECRET=your_super_secret_refresh_key
-   REFRESH_TOKEN_EXPIRES_IN=30d
-
-   # Password Recovery
-   RESET_PASS_TOKEN=your_reset_token_secret
-   RESET_PASS_TOKEN_EXPIRES_IN=15m
-   RESET_PASS_LINK=http://localhost:3000/reset-password
-
-   # SMTP Configuration (Nodemailer)
-   EMAIL=your-shelter-email@gmail.com
-   APP_PASS=your-google-app-password
+   ```bash
+   cp .env.example .env
    ```
+   Then fill in the values (see the [reference](#-environment-variables-reference)).
 
 4. **Run database migrations & generate Prisma client**:
    ```bash
@@ -212,29 +205,42 @@ Ensure you have the following installed locally:
 
 ---
 
-### 2. Frontend Setup (Client)
+### 2. Portal Setup (Web)
 
-1. **Navigate to the client directory**:
+1. **Navigate to the portal directory**:
    ```bash
-   cd ../client
+   cd ../portal
    ```
 
-2. **Install dependencies**:
+2. **Install dependencies** (`--legacy-peer-deps` is needed because `@mui/material-nextjs` does not yet list Next 16 in its peer range):
    ```bash
-   npm install
+   npm install --legacy-peer-deps
    ```
 
 3. **Configure environment variables**:
-   Create a `.env.local` file in `client/`:
-   ```env
-   NEXT_PUBLIC_BACKEND_API_URL=http://localhost:5000/api/v1
+   ```bash
+   cp .env.example .env
    ```
 
-4. **Start the Next.js development server with Turbopack**:
+4. **Start the Next.js development server**:
    ```bash
    npm run dev
    ```
-   *The client will be accessible at `http://localhost:3000`.*
+   *The portal will be accessible at `http://localhost:3000`.*
+
+> Shelter, owner, admin and super-admin dashboards are currently built on mock data (see [docs/plan.md](docs/plan.md)). They connect to the API in Phase 4.
+
+---
+
+### 3. Mobile App Setup (Expo)
+
+1. ```bash
+   cd ../app
+   npm install
+   cp .env.example .env
+   npx expo start
+   ```
+2. Open it in Expo Go or an emulator. The app uses mock data and does not call the API yet.
 
 ---
 
@@ -256,10 +262,18 @@ Ensure you have the following installed locally:
 | `EMAIL` | Shelter sender email for reset emails | `notifications@petfinder.org` |
 | `APP_PASS` | Sender email app password | `abcd efgh ijkl mnop` |
 
-### Frontend (`client/.env.local`)
+### Portal (`portal/.env`)
 | Variable | Description | Example |
 | :--- | :--- | :--- |
 | `NEXT_PUBLIC_BACKEND_API_URL` | Public endpoint of the backend API | `http://localhost:5000/api/v1` |
+| `NEXT_PUBLIC_IMGBB_KEY` | imgbb API key for image uploads | `your-imgbb-key` |
+
+### Mobile (`app/.env`)
+| Variable | Description | Example |
+| :--- | :--- | :--- |
+| `EXPO_PUBLIC_API_URL` | API base URL (not read yet; used from Phase 4) | `http://192.168.0.10:5000/api/v1` |
+
+Copy each `.env.example` to `.env` and replace the placeholder values. Real `.env` files are git-ignored.
 
 ---
 
@@ -290,7 +304,7 @@ Petfinder uses Prisma ORM for fully type-safe database access and automatic migr
 
 Petfinder adheres to rigorous software engineering and security practices:
 
-- **0 Known Vulnerabilities**: Both `client` and `server` pass `npm audit` with **0 vulnerabilities**.
+- **0 Known Vulnerabilities**: Both `portal` and `server` pass `npm audit` with **0 vulnerabilities**.
 - **Sanitized Supply Chain**: Completely free of malicious injection scripts and unauthorized dependencies.
 - **Authentication**: Stateless JWT access tokens with long-lived HTTP-only refresh tokens.
 - **Password Protection**: One-way hashing using salted `bcrypt` rounds.

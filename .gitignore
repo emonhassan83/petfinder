@@ -21,7 +21,7 @@ node_modules/
 .env.test.local
 .env.production.local
 *.env
-client/.env*
+portal/.env*
 server/.env*
 _user_credential.txt
 *.pem
@@ -33,7 +33,7 @@ _user_credential.txt
 # Build & Compilation Outputs
 # ------------------------------------------------------------------------------
 # Next.js (Client)
-client/.next/
+portal/.next/
 .next/
 out/
 build/
@@ -111,3 +111,7 @@ branch_structure.json
 temp_auto_push.bat
 temp_interactive_push.bat
 api.js
+
+# Keep example env files tracked
+!*.env.example
+!.env.example

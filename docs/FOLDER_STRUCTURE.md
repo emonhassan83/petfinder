@@ -10,7 +10,7 @@ This document outlines the organization, conventions, and module layout of the *
 medico/
 ├── .gitignore               # Comprehensive Git ignore rules (Next.js, Node, logs, secrets)
 ├── README.md                # Project landing, features, installation, team & contributor guide
-├── client/                  # Next.js 14 App Router Frontend
+├── portal/                  # Next.js 14 App Router Frontend
 ├── server/                  # Express.js & TypeScript Backend (Prisma ORM)
 └── docs/                    # Technical engineering specifications & architecture
     ├── AI_SYSTEM_PROMPT.md  # System instructions for AI coding assistants
@@ -27,12 +27,12 @@ medico/
 
 ---
 
-## 2. Frontend Structure (`client/`)
+## 2. Frontend Structure (`portal/`)
 
 The client is built using **Next.js 14 (App Router)**, **Ant Design (antd)**, **Tailwind CSS**, and **Redux Toolkit**:
 
 ```
-client/
+portal/
 ├── package.json             # Frontend dependencies & scripts
 ├── tsconfig.json            # TypeScript configuration
 ├── tailwind.config.ts       # Tailwind CSS configuration

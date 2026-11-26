@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --pf-primary: #1f8a70;
+  --pf-primary-dark: #176b57;
+  --pf-primary-light: #e3f3ee;
+  --pf-accent: #ff7a59;
+  --pf-sunshine: #ffc857;
+  --pf-ink: #1b2a2f;
+  --pf-slate: #5b6b70;
+  --pf-cream: #fff8f0;
+  --pf-line: #e8e2d9;
+}
+
+/* global style */
+* {
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--pf-cream);
+  color: var(--pf-ink);
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}

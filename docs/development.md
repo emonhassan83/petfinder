@@ -91,11 +91,11 @@ The server will boot on `http://localhost:5000`. Healthcheck endpoint: `http://l
 
 ---
 
-## 4. Frontend Setup (`client/`)
+## 4. Frontend Setup (`portal/`)
 
 ### 1. Navigate to Client Directory:
 ```bash
-cd ../client
+cd ../portal
 ```
 
 ### 2. Install Dependencies:
@@ -104,7 +104,7 @@ npm install
 ```
 
 ### 3. Configure Environment Variables:
-Create `.env.local` in `client/`:
+Create `.env.local` in `portal/`:
 ```bash
 NEXT_PUBLIC_API_BASE_URL=http://localhost:5000/api/v1
 ```
