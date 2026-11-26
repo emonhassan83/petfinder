@@ -9,17 +9,21 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        //* CSS variables from globals.css so classes follow light/dark mode
         brand: {
-          DEFAULT: '#1F8A70',
-          dark: '#176B57',
-          light: '#E3F3EE',
+          DEFAULT: 'var(--pf-primary)',
+          dark: 'var(--pf-primary-dark)',
+          light: 'var(--pf-primary-light)',
         },
-        accent: '#FF7A59',
-        sunshine: '#FFC857',
-        ink: '#1B2A2F',
-        slate: '#5B6B70',
-        cream: '#FFF8F0',
-        line: '#E8E2D9',
+        accent: 'var(--pf-accent)',
+        rust: 'var(--pf-rust)',
+        peach: 'var(--pf-peach)',
+        sunshine: 'var(--pf-sunshine)',
+        ink: 'var(--pf-ink)',
+        slate: 'var(--pf-slate)',
+        cream: 'var(--pf-cream)',
+        paper: 'var(--pf-paper)',
+        line: 'var(--pf-line)',
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',

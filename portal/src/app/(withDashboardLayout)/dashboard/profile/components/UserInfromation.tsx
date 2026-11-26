@@ -1,7 +1,7 @@
 import { Box, Stack, styled, Typography } from '@mui/material';
 
 const StyledInformationBox = styled(Box)(({ theme }) => ({
-   background: '#FFF8F0',
+   background: theme.vars.palette.background.default,
    borderRadius: theme.spacing(1),
    width: '45%',
    padding: '8px 16px',

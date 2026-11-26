@@ -1,85 +1,91 @@
-import assets from "@/assets";
-import { Box, Container, Grid, Typography } from "@mui/material";
+import { Box, Container, Typography } from "@mui/material";
+import SavingsOutlinedIcon from "@mui/icons-material/SavingsOutlined";
+import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
+import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import Image from "next/image";
+import { adoptingGuideImage } from "@/mock/pets";
+import Reveal from "../../Reveal";
 
-const planAdoptData = [
+const tips = [
   {
-    image: assets.logo.organization,
-    title: "Checklist for new adopters",
-    description: "Make the adoption transition as smooth as possible.",
+    icon: SavingsOutlinedIcon,
+    title: "Financial Planning for Pet Ownership",
+    text: "Consider the costs of your pet's needs and well-being: food, vet care, grooming, insurance and supplies.",
   },
   {
-    image: assets.logo.health,
-    title: "COVID-19 Resources",
-    description:
-      "Learn how shelters/rescue groups are adapting. Find out how you can help dogs and cats.",
+    icon: SchoolOutlinedIcon,
+    title: "Educating Yourself on Pet Care",
+    text: "Learn about their specific needs and behaviour, and plan proper care, training and a suitable environment for your new companion.",
   },
   {
-    image: assets.logo.pet,
-    title: "Pet Adoption FAQs",
-    description:
-      "Get answer to all the you questions you haven’t thought of for your adoption.",
+    icon: HomeOutlinedIcon,
+    title: "Creating a Pet-Friendly Home",
+    text: "Make adjustments to your living space: pet-proofing, comfortable bedding and toys so they feel safe and secure.",
   },
 ];
 
+//* "Things to know and prepare when adopting"
 const PlanningAdopt = () => {
   return (
-    <Box sx={{ backgroundColor: "#E3F3EE", padding: { xs: 4, sm: 8 } }}>
+    <Box component="section" sx={{ bgcolor: "var(--pf-soft)", py: { xs: 6, md: 10 } }} aria-labelledby="things-to-know">
       <Container>
-        <Box sx={{ textAlign: "center", mb: { xs: 1, sm: 4 } }}>
-          <Typography
-            variant="h4"
-            component="h1"
-            sx={{
-              fontSize: { xs: "1.2rem", sm: "2rem" },
-            }}
-            fontWeight={400}
-          >
-            PLANNING TO ADOPT A PET?
+        <Box sx={{ textAlign: "center", maxWidth: 680, mx: "auto", mb: { xs: 4, md: 6 } }}>
+          <Typography id="things-to-know" variant="h3" sx={{ fontSize: { xs: "1.6rem", md: "2.2rem" } }}>
+            Things to Know and Prepare when Adopting
+          </Typography>
+          <Typography color="text.secondary" sx={{ mt: 1.5 }}>
+            Before bringing a new furry family member home, consider the responsibility of providing a safe haven,
+            affection, and the time they need to thrive.
           </Typography>
         </Box>
 
-        <Grid container spacing={4}>
-          {planAdoptData?.map((data: any, index: number) => (
-            <Grid item key={index} xs={12} md={4} sx={{ textAlign: "center" }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  textAlign: "center",
-                }}
-              >
-                <Image src={data?.image} alt="Icon" width={150} height={100} />
-                <Box sx={{ width: "100%", maxWidth: "400px", mt: 2 }}>
-                  <Typography
-                    gutterBottom
-                    variant="h5"
-                    component="div"
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: { xs: 4, md: 8 }, alignItems: "center" }}>
+          <Box
+            sx={{
+              position: "relative",
+              height: { xs: 260, md: 400 },
+              borderRadius: 4,
+              overflow: "hidden",
+              boxShadow: "var(--pf-shadow)",
+              "& img": { transition: "transform 1s ease" },
+              "&:hover img": { transform: "scale(1.04)" },
+            }}
+          >
+            <Image src={adoptingGuideImage} alt="Golden retriever relaxing at home" fill sizes="(max-width: 900px) 100vw, 50vw" style={{ objectFit: "cover" }} />
+          </Box>
+
+          <Box sx={{ display: "grid", gap: 3.5 }}>
+            {tips.map(({ icon: Icon, title, text }, i) => (
+              <Reveal key={title} delay={i * 120}>
+                <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
+                  <Box
                     sx={{
-                      fontSize: { xs: "1.2rem", sm: "1.5rem", md: "2rem" },
+                      flexShrink: 0,
+                      width: 44,
+                      height: 44,
+                      borderRadius: "50%",
+                      bgcolor: "primary.main",
+                      color: "#fff",
+                      display: "grid",
+                      placeItems: "center",
+                      boxShadow: "0 0 0 6px var(--pf-primary-light)",
                     }}
                   >
-                    {data?.title}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{
-                      fontSize: {
-                        xs: "0.675rem",
-                        sm: "0.875rem",
-                        md: "1rem",
-                      },
-                    }}
-                  >
-                    {data.description}
-                  </Typography>
+                    <Icon fontSize="small" />
+                  </Box>
+                  <Box>
+                    <Typography variant="h6" sx={{ color: "var(--pf-rust)", fontSize: { xs: 17, md: 19 } }}>
+                      {title}
+                    </Typography>
+                    <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                      {text}
+                    </Typography>
+                  </Box>
                 </Box>
-              </Box>
-            </Grid>
-          ))}
-        </Grid>
+              </Reveal>
+            ))}
+          </Box>
+        </Box>
       </Container>
     </Box>
   );

@@ -1,12 +1,13 @@
 import React from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { BottomTabBarProps, createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "./src/theme";
-import { AppStateProvider } from "./src/state/AppState";
+import { colors, shadow } from "./src/theme";
+import { AppStateProvider, useAppState } from "./src/state/AppState";
 import { DiscoverScreen } from "./src/screens/DiscoverScreen";
 import { FavoritesScreen } from "./src/screens/FavoritesScreen";
 import { ChatListScreen } from "./src/screens/ChatListScreen";
@@ -14,37 +15,87 @@ import { ApplicationsScreen } from "./src/screens/ApplicationsScreen";
 import { ProfileScreen } from "./src/screens/ProfileScreen";
 import { PetDetailScreen } from "./src/screens/PetDetailScreen";
 import { ChatScreen } from "./src/screens/ChatScreen";
+import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-const icons: Record<string, [keyof typeof Ionicons.glyphMap, keyof typeof Ionicons.glyphMap]> = {
-  Discover: ["search", "search-outline"],
-  Favorites: ["heart", "heart-outline"],
-  Chat: ["chatbubble", "chatbubble-outline"],
-  Applications: ["document-text", "document-text-outline"],
-  Profile: ["person", "person-outline"],
+type IconName = keyof typeof Ionicons.glyphMap;
+const tabs: Record<string, { label: string; on: IconName; off: IconName }> = {
+  Discover: { label: "Adopt", on: "paw", off: "paw-outline" },
+  Favorites: { label: "Saved", on: "heart", off: "heart-outline" },
+  Applications: { label: "Applied", on: "document-text", off: "document-text-outline" },
+  Chat: { label: "Chat", on: "chatbubble-ellipses", off: "chatbubble-ellipses-outline" },
+  Profile: { label: "Profile", on: "person", off: "person-outline" },
+};
+
+//* Pill tab bar: the active tab shows icon + label on a soft coral pill
+const PillTabBar = ({ state, navigation }: BottomTabBarProps) => {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={[styles.bar, { paddingBottom: insets.bottom + 10 }]}>
+      {state.routes.map((route, i) => {
+        const focused = state.index === i;
+        const t = tabs[route.name];
+        return (
+          <Pressable
+            key={route.key}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: focused }}
+            accessibilityLabel={t.label}
+            onPress={() => {
+              const e = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
+              if (!focused && !e.defaultPrevented) navigation.navigate(route.name);
+            }}
+            style={[styles.tab, focused && styles.tabOn]}
+          >
+            <Ionicons name={focused ? t.on : t.off} size={20} color={focused ? colors.primary : "#A3A6B4"} />
+            {focused && <Text style={styles.tabText}>{t.label}</Text>}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
 };
 
 const Tabs = () => (
   <Tab.Navigator
-    screenOptions={({ route }) => ({
-      tabBarActiveTintColor: colors.primary,
-      tabBarInactiveTintColor: colors.slate,
+    tabBar={(p) => <PillTabBar {...p} />}
+    screenOptions={{
       headerStyle: { backgroundColor: colors.white },
-      headerTitleStyle: { color: colors.ink },
-      tabBarIcon: ({ focused, color, size }) => <Ionicons name={icons[route.name][focused ? 0 : 1]} size={size} color={color} />,
-    })}
+      headerShadowVisible: false,
+      headerTitleStyle: { color: colors.ink, fontWeight: "800" },
+    }}
   >
-    <Tab.Screen name="Discover" component={DiscoverScreen} />
-    <Tab.Screen name="Favorites" component={FavoritesScreen} />
-    <Tab.Screen name="Chat" component={ChatListScreen} options={{ title: "Messages" }} />
+    <Tab.Screen name="Discover" component={DiscoverScreen} options={{ headerShown: false }} />
+    <Tab.Screen name="Favorites" component={FavoritesScreen} options={{ title: "Saved pets" }} />
     <Tab.Screen name="Applications" component={ApplicationsScreen} />
+    <Tab.Screen name="Chat" component={ChatListScreen} options={{ title: "Messages" }} />
     <Tab.Screen name="Profile" component={ProfileScreen} />
   </Tab.Navigator>
 );
 
 const navTheme = { ...DefaultTheme, colors: { ...DefaultTheme.colors, primary: colors.primary, background: colors.cream } };
+
+const Root = () => {
+  const { ready, onboarded } = useAppState();
+  if (!ready) return <View style={{ flex: 1, backgroundColor: colors.white }} />;
+
+  return (
+    <Stack.Navigator screenOptions={{ headerTintColor: colors.primary, headerShadowVisible: false, animation: "slide_from_right" }}>
+      {!onboarded ? (
+        <Stack.Screen name="Welcome" component={OnboardingScreen} options={{ headerShown: false }} />
+      ) : (
+        <>
+          <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
+          <Stack.Screen name="PetDetail" component={PetDetailScreen} options={{ headerShown: false, animation: "fade_from_bottom" }} />
+          <Stack.Screen name="Chat" component={ChatScreen} />
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ title: "Preferences", presentation: "modal" }} />
+        </>
+      )}
+    </Stack.Navigator>
+  );
+};
 
 export default function App() {
   return (
@@ -52,13 +103,16 @@ export default function App() {
       <AppStateProvider>
         <NavigationContainer theme={navTheme}>
           <StatusBar style="dark" />
-          <Stack.Navigator screenOptions={{ headerTintColor: colors.primary }}>
-            <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
-            <Stack.Screen name="PetDetail" component={PetDetailScreen} options={{ title: "" }} />
-            <Stack.Screen name="Chat" component={ChatScreen} />
-          </Stack.Navigator>
+          <Root />
         </NavigationContainer>
       </AppStateProvider>
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  bar: { flexDirection: "row", justifyContent: "space-around", alignItems: "center", backgroundColor: colors.white, paddingTop: 10, paddingHorizontal: 12, ...shadow },
+  tab: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10 },
+  tabOn: { backgroundColor: colors.primaryLight },
+  tabText: { color: colors.primary, fontWeight: "700", fontSize: 13 },
+});

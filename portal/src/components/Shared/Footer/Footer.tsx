@@ -1,176 +1,150 @@
 "use client";
 
-import {
-  Box,
-  Container,
-  Stack,
-  Typography,
-  Grid,
-  Divider,
-} from "@mui/material";
-import Image from "next/image";
+import { useState } from "react";
+import { Box, Button, Container, IconButton, InputBase, Typography } from "@mui/material";
 import Link from "next/link";
-import assets from "@/assets";
+import FacebookIcon from "@mui/icons-material/Facebook";
+import InstagramIcon from "@mui/icons-material/Instagram";
+import XIcon from "@mui/icons-material/X";
+import YouTubeIcon from "@mui/icons-material/YouTube";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import { toast } from "sonner";
+import Logo from "../Logo";
+
+const columns = [
+  {
+    title: "Adopt",
+    links: [
+      { label: "Dogs", href: "/pets?species=Dog" },
+      { label: "Cats", href: "/pets?species=Cat" },
+      { label: "Other animals", href: "/pets?species=Rabbit" },
+      { label: "Shelters & rescues", href: "/shelters" },
+    ],
+  },
+  {
+    title: "Resources",
+    links: [
+      { label: "Adoption articles", href: "/blogs" },
+      { label: "Checklist for new adopters", href: "/blogs" },
+      { label: "Adoption FAQs", href: "/blogs" },
+      { label: "Saved pets", href: "/dashboard/user/favorites" },
+    ],
+  },
+  {
+    title: "For shelters & owners",
+    links: [
+      { label: "List a pet", href: "/register" },
+      { label: "Plans & pricing", href: "/dashboard/shelter/billing" },
+      { label: "Get verified", href: "/dashboard/shelter" },
+      { label: "Shelter dashboard", href: "/dashboard/shelter" },
+    ],
+  },
+  {
+    title: "About",
+    links: [
+      { label: "About us", href: "/about-us" },
+      { label: "Donate", href: "/donate" },
+      { label: "Contact", href: "/about-us" },
+      { label: "Report a listing", href: "/about-us" },
+    ],
+  },
+];
+
+const socials = [
+  { icon: FacebookIcon, label: "Facebook" },
+  { icon: InstagramIcon, label: "Instagram" },
+  { icon: XIcon, label: "X" },
+  { icon: YouTubeIcon, label: "YouTube" },
+];
 
 const Footer = () => {
+  const [email, setEmail] = useState("");
+
+  const subscribe = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!/^\S+@\S+\.\S+$/.test(email)) return toast.error("Please enter a valid email address.");
+    //* Preview only: newsletter API arrives with the backend phase
+    toast.success("Thanks! You're on the list.");
+    setEmail("");
+  };
+
   return (
-    <Box bgcolor="primary.main" sx={{py: {xs: 3, sm: 4, md: 6} }} color="white">
-      <Container>
-        {/* Footer Navigation */}
-        <Grid container spacing={{ xs: 2, sm: 3, md: 4 }} justifyContent="center">
-          {/* Logo and Description */}
-          <Grid item xs={12} md={3}>
-            <Image
-              src={assets.images.logo}
-              alt="PetPlace Logo"
-              width={100}
-              height={100}
-              style={{
-                filter: "brightness(0) invert(1)",
-                objectFit: "contain",
-              }}
-            />
-            <Typography
-              sx={{ color: "white", fontSize: { xs: 10, sm: 14, md: 18 } }}
-              variant="body2"
-              mt={2}
-            >
-              PetPlace is dedicated to helping pets find loving homes. We
-              connect adopters with shelters and provide resources for pet care
-              and adoption support.
+    <Box component="footer" sx={{ mt: 4 }}>
+      {/* Newsletter band */}
+      <Box sx={{ bgcolor: "var(--pf-peach)" }}>
+        <Container sx={{ py: { xs: 4, md: 5 }, display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 3, alignItems: "center" }}>
+          <Box>
+            <Typography variant="h5" sx={{ fontSize: { xs: 20, md: 26 } }}>
+              Get adoption tips and new pets in your inbox
             </Typography>
-          </Grid>
-
-          {/* About Us Links */}
-          <Grid item xs={12} md={3}>
-            <Typography variant="h6" sx={{ fontSize: { xs: 12, sm: 16, md: 20 }}} fontWeight={600} gutterBottom>
-              About Us
+            <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+              One friendly email a week. Unsubscribe anytime.
             </Typography>
-            <Stack spacing={{xs: 0.4, sm: 1}}>
-              <Typography component={Link} sx={{ fontSize: { xs: 10, sm: 14, md: 18 }}} href="/about-us" color="inherit">
-                Our Story
-              </Typography>
-              <Typography  component={Link} sx={{ fontSize: { xs: 10, sm: 14, md: 18 }}} href="/" color="inherit">
-                Our Mission
-              </Typography>
-              <Typography component={Link} sx={{ fontSize: { xs: 10, sm: 14, md: 18 }}} href="/" color="inherit">
-                Meet the Team
-              </Typography>
-              <Typography component={Link} sx={{ fontSize: { xs: 10, sm: 14, md: 18 }}} href="/" color="inherit">
-                Contact Us
-              </Typography>
-            </Stack>
-          </Grid>
-
-          {/* Resources Links */}
-          <Grid item xs={12} md={3}>
-            <Typography variant="h6" sx={{ fontSize: { xs: 12, sm: 16, md: 20 }}} fontWeight={600} gutterBottom>
-              Resources
-            </Typography>
-          <Stack spacing={{xs: 0.4, sm: 1}}>
-              <Typography component={Link} sx={{ fontSize: { xs: 10, sm: 14, md: 18 }}} href="/blogs" color="inherit">
-                Blog
-              </Typography>
-              <Typography component={Link} sx={{ fontSize: { xs: 10, sm: 14, md: 18 }}} href="/" color="inherit">
-                Pet Care Guides
-              </Typography>
-              <Typography component={Link} sx={{ fontSize: { xs: 10, sm: 14, md: 18 }}} href="/" color="inherit">
-                FAQs
-              </Typography>
-              <Typography component={Link} sx={{ fontSize: { xs: 10, sm: 14, md: 18 }}} href="/" color="inherit">
-                Support
-              </Typography>
-            </Stack>
-          </Grid>
-
-          {/* Get Involved Links */}
-          <Grid item xs={12} md={3}>
-            <Typography variant="h6" fontWeight={600}  sx={{ fontSize: { xs: 12, sm: 16, md: 20 }}} gutterBottom>
-              Get Involved
-            </Typography>
-            <Stack spacing={{xs: 0.4, sm: 1}}>
-              <Typography component={Link} sx={{ fontSize: { xs: 10, sm: 14, md: 18 }}} href="/pets" color="inherit">
-                Adopt a Pet
-              </Typography>
-              <Typography component={Link} sx={{ fontSize: { xs: 10, sm: 14, md: 18 }}} href="/" color="inherit">
-                Volunteer
-              </Typography>
-              <Typography component={Link} sx={{ fontSize: { xs: 10, sm: 14, md: 18 }}} href="/" color="inherit">
-                Donate
-              </Typography>
-              <Typography component={Link} sx={{ fontSize: { xs: 10, sm: 14, md: 18 }}} href="/" color="inherit">
-                Events
-              </Typography>
-            </Stack>
-          </Grid>
-        </Grid>
-
-        {/* Divider */}
-        <Divider sx={{ borderColor: "rgb(226, 226, 226)", my: 4 }} />
-
-        {/* Terms, Conditions and Social Media Icons */}
-        <Stack
-          direction={{ xs: "column", md: "row" }}
-          justifyContent="center"
-          alignItems="center"
-          spacing={{xs: 1, sm: 2}}
-          sx={{ textAlign: { xs: "center", md: "center" } }}
-        >
-          <Typography color="#ffffff" variant="body2" sx={{ fontSize: { xs: 10, sm: 14, md: 18 }}} textAlign="center">
-            PetPlace and its associated logos are trademarks of Pet Animal
-            Supplies, Inc.™ 2024. All rights reserved.
-          </Typography>
-          <Typography color="#ffffff" variant="body2" sx={{ fontSize: { xs: 10, sm: 14, md: 18 }}} textAlign="center">
-            <Link href="/" passHref>
-              Privacy Policy
-            </Link>{" "}
-            |{" "}
-            <Link href="/" passHref>
-              Terms & Conditions
-            </Link>
-          </Typography>
-        </Stack>
-
-        {/* Social Media Icons (Centered) */}
-        <Stack direction="row" justifyContent="center" spacing={2} mt={2}>
-          <Link href="https://www.facebook.com" passHref>
-            <Image
-              src={assets.logo.facebook}
-              width={30}
-              height={30}
-              alt="Facebook"
-              style={{ cursor: "pointer" }}
+          </Box>
+          <Box
+            component="form"
+            onSubmit={subscribe}
+            sx={{ display: "flex", alignItems: "center", gap: 1, bgcolor: "background.paper", borderRadius: 999, p: 0.75, pl: 2.5, boxShadow: "var(--pf-shadow)" }}
+          >
+            <MailOutlineIcon sx={{ color: "text.secondary" }} />
+            <InputBase
+              fullWidth
+              type="email"
+              placeholder="Your email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              inputProps={{ "aria-label": "Email address" }}
+              sx={{ color: "text.primary" }}
             />
-          </Link>
-          <Link href="https://www.instagram.com" passHref>
-            <Image
-              src={assets.logo.instagram}
-              width={30}
-              height={30}
-              alt="Instagram"
-              style={{ cursor: "pointer" }}
-            />
-          </Link>
-          <Link href="https://www.twitter.com" passHref>
-            <Image
-              src={assets.logo.twitter}
-              width={30}
-              height={30}
-              alt="Twitter"
-              style={{ cursor: "pointer" }}
-            />
-          </Link>
-          <Link href="https://www.linkedin.com" passHref>
-            <Image
-              src={assets.logo.linkedin}
-              width={30}
-              height={30}
-              alt="LinkedIn"
-              style={{ cursor: "pointer" }}
-            />
-          </Link>
-        </Stack>
-      </Container>
+            <Button type="submit" color="secondary" sx={{ flexShrink: 0 }}>
+              Subscribe
+            </Button>
+          </Box>
+        </Container>
+      </Box>
+
+      {/* Links */}
+      <Box sx={{ bgcolor: "var(--pf-footer)", color: "rgba(255,255,255,.85)" }}>
+        <Container sx={{ py: { xs: 5, md: 7 } }}>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "1.4fr repeat(4, 1fr)" }, gap: { xs: 4, md: 5 } }}>
+            <Box sx={{ gridColumn: { xs: "1 / -1", md: "auto" } }}>
+              <Logo light />
+              <Typography sx={{ mt: 2, maxWidth: 300, fontSize: 15 }}>
+                Petfinder connects loving families with verified shelters and pet owners, so every pet gets a second chance.
+              </Typography>
+              <Box sx={{ display: "flex", gap: 1, mt: 2 }}>
+                {socials.map(({ icon: Icon, label }) => (
+                  <IconButton
+                    key={label}
+                    aria-label={label}
+                    sx={{ color: "#fff", bgcolor: "rgba(255,255,255,.1)", "&:hover": { bgcolor: "secondary.main", transform: "translateY(-2px)" } }}
+                  >
+                    <Icon fontSize="small" />
+                  </IconButton>
+                ))}
+              </Box>
+            </Box>
+            {columns.map((col) => (
+              <Box key={col.title}>
+                <Typography sx={{ color: "#fff", fontFamily: "var(--font-heading), sans-serif", fontWeight: 700, mb: 1.5 }}>{col.title}</Typography>
+                <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0, display: "grid", gap: 1 }}>
+                  {col.links.map((l) => (
+                    <li key={l.label}>
+                      <Box component={Link} href={l.href} sx={{ fontSize: 15, transition: "color .2s ease, padding .2s ease", "&:hover": { color: "#fff", pl: 0.5 } }}>
+                        {l.label}
+                      </Box>
+                    </li>
+                  ))}
+                </Box>
+              </Box>
+            ))}
+          </Box>
+          <Box sx={{ borderTop: "1px solid rgba(255,255,255,.15)", mt: 5, pt: 3, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 1, fontSize: 14 }}>
+            <span>© {new Date().getFullYear()} Petfinder. All rights reserved.</span>
+            <span>Privacy · Terms · Cookies</span>
+          </Box>
+        </Container>
+      </Box>
     </Box>
   );
 };

@@ -3,15 +3,42 @@
 @tailwind utilities;
 
 :root {
-  --pf-primary: #1f8a70;
-  --pf-primary-dark: #176b57;
-  --pf-primary-light: #e3f3ee;
-  --pf-accent: #ff7a59;
+  --pf-primary: #148f98;
+  --pf-primary-dark: #0e6f77;
+  --pf-primary-light: #e2f3f4;
+  --pf-accent: #e8793a;
+  --pf-rust: #9a3a12;
+  --pf-peach: #fdeee4;
   --pf-sunshine: #ffc857;
-  --pf-ink: #1b2a2f;
-  --pf-slate: #5b6b70;
-  --pf-cream: #fff8f0;
-  --pf-line: #e8e2d9;
+  --pf-ink: #1e2326;
+  --pf-slate: #5e6b73;
+  --pf-cream: #ffffff;
+  --pf-paper: #ffffff;
+  --pf-soft: #faf7f5;
+  --pf-line: #ece6e1;
+  --pf-shadow: 0 12px 32px -14px rgba(30, 35, 38, 0.22);
+  --pf-footer: #0e4f55;
+  /* Declaring dark support stops browser auto-dark from repainting light mode; the toggle owns the theme */
+  color-scheme: light dark;
+}
+
+/* MUI CssVarsProvider sets this attribute on <html> */
+[data-mui-color-scheme="dark"] {
+  --pf-primary: #3bb8c2;
+  --pf-primary-dark: #2a98a1;
+  --pf-primary-light: #173336;
+  --pf-accent: #f0925c;
+  --pf-rust: #b8532a;
+  --pf-peach: #241b17;
+  --pf-ink: #eceff0;
+  --pf-slate: #9daab0;
+  --pf-cream: #111719;
+  --pf-paper: #1a2326;
+  --pf-soft: #151d20;
+  --pf-line: #2a3539;
+  --pf-shadow: 0 12px 32px -14px rgba(0, 0, 0, 0.7);
+  --pf-footer: #0a1f22;
+  color-scheme: dark;
 }
 
 /* global style */
@@ -19,6 +46,10 @@
   padding: 0;
   margin: 0;
   box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
@@ -29,4 +60,65 @@ body {
 a {
   text-decoration: none;
   color: inherit;
+}
+
+::selection {
+  background: var(--pf-primary);
+  color: #fff;
+}
+
+/* ---------- Animations ---------- */
+@keyframes pf-fade-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes pf-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pf-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.pf-fade-up { animation: pf-fade-up .7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.pf-delay-1 { animation-delay: .1s; }
+.pf-delay-2 { animation-delay: .2s; }
+.pf-delay-3 { animation-delay: .3s; }
+.pf-float { animation: pf-float 5s ease-in-out infinite; }
+.pf-pop { animation: pf-pop .35s ease; }
+
+/* Scroll reveal (toggled by components/UI/Reveal.tsx) */
+.pf-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity .7s cubic-bezier(0.22, 1, 0.36, 1), transform .7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pf-reveal.is-visible { opacity: 1; transform: none; }
+
+/* Card lift on hover */
+.pf-lift { transition: transform .25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow .25s ease; }
+.pf-lift:hover { transform: translateY(-4px); box-shadow: var(--pf-shadow); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .pf-reveal { opacity: 1; transform: none; }
+}
+
+/* Organic blob used behind the hero pet */
+@keyframes pf-morph {
+  0%, 100% { border-radius: 58% 42% 46% 54% / 52% 44% 56% 48%; }
+  50% { border-radius: 44% 56% 58% 42% / 46% 58% 42% 54%; }
+}
+.pf-blob {
+  border-radius: 58% 42% 46% 54% / 52% 44% 56% 48%;
+  animation: pf-morph 12s ease-in-out infinite;
 }

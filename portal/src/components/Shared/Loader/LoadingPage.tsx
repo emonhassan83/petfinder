@@ -21,7 +21,7 @@ const LoadingPage = () => {
       <ScaleLoader
         height={100}
         width={isSmallScreen ? 10 : 16}
-        color="#1F8A70"
+        color="var(--pf-primary)"
       />
     </div>
   );

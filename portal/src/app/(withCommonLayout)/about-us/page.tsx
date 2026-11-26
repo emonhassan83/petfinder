@@ -1,123 +1,120 @@
-"use client";
-
-import assets from "@/assets";
-import AboutServices from "./components/AboutServices/AboutServices";
-import AboutMembers from "./components/AboutMembers/AboutMembers";
-import AboutUsBanner from "./components/AboutUsBanner/AboutUsBanner";
+import { Box, Container, Typography } from "@mui/material";
+import Image from "next/image";
+import SearchIcon from "@mui/icons-material/Search";
+import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
+import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
+import GavelOutlinedIcon from "@mui/icons-material/GavelOutlined";
+import VolunteerActivismOutlinedIcon from "@mui/icons-material/VolunteerActivismOutlined";
 import Meta from "@/components/Meta/MetaData";
+import PageHeader from "@/components/Shared/PageHeader";
+import Reveal from "@/components/UI/Reveal";
+import { adoptingGuideImage, unsplash } from "@/mock/pets";
 
-const servicesData = [
-  {
-    image: assets.images.about_us_blog1,
-    title: "Creating Families",
-    sub_title: "Petco Love Adopt",
-    description:
-      "Bigger smiles. Warmer welcomes. Cozier naps and movie nights. When you adopt a pet, life gets better for you, your family, and the pet you bring home. With Petco Love Adopt, we facilitate adoptions for thousands of dogs, cats, rabbits, and other pets every day. See for yourself.",
-    stats: "Over 6.5 million pets adopted since 1999.",
-    additional_info:
-      "We work closely with over 4,000 adoption partners nationwide to ensure every pet finds the right home. Each adoption comes with resources and support to help integrate the new family member seamlessly.",
-    learn_more_link: "/about-us",
-  },
-  {
-    image: assets.images.about_us_blog2,
-    title: "Championing Health",
-    sub_title: "Petco Love Care",
-    description:
-      "Love equals care. Petco Love champions initiatives to keep pets healthy by providing free pet vaccines and affordable treatment options. But we can’t do it alone.",
-    stats: "Over 1 million free vaccines provided.",
-    additional_info:
-      "In collaboration with local shelters and veterinary clinics, we offer comprehensive health check-ups, vaccination drives, and low-cost treatment options, ensuring pets receive the care they deserve.",
-    learn_more_link: "/about-us",
-  },
-  {
-    image: assets.images.about_us_blog3,
-    title: "Supporting Rescues",
-    sub_title: "Petco Love Support",
-    description:
-      "We provide financial and logistical support to rescue organizations nationwide, helping them save more lives.",
-    stats: "Over 4,000 animal welfare organizations supported.",
-    additional_info:
-      "Through our grants and donations, we empower shelters and rescue groups with the resources they need to expand their operations, increase their capacity, and ultimately save more lives.",
-    learn_more_link: "/about-us",
-  },
+const stats = [
+  { value: "1,200+", label: "Pets adopted" },
+  { value: "85", label: "Partner shelters" },
+  { value: "40+", label: "Verified rescues" },
+  { value: "24h", label: "Average reply time" },
 ];
 
-const leadershipData = [
-  {
-    image: assets.images.about_author1,
-    name: "Susanne Kogut",
-    designation: "President",
-    bio: "With over 20 years of experience in animal welfare, Susanne leads our organization with a passion for making a difference. Under her leadership, we've expanded our reach and impact nationwide.",
-    experience: "20+ years in animal welfare",
-    achievements: [
-      "Expanded Petco Love Adopt program to over 1,000 locations",
-      "Launched the nationwide Shelter Love Grants initiative",
-    ],
-    social_links: {
-      linkedin: "https://linkedin.com",
-      twitter: "https://twitter.com",
-    },
-  },
-  {
-    image: assets.images.about_author2,
-    name: "Jennifer Schulz",
-    designation: "Director, Strategic Partnerships & Public Relations",
-    bio: "Jennifer is a strategic thinker with a heart for animals. She has spearheaded numerous successful partnerships that have brought significant resources to our cause.",
-    experience: "15 years in strategic partnerships",
-    achievements: [
-      "Negotiated key partnerships with national veterinary networks",
-      "Increased public awareness through targeted PR campaigns",
-    ],
-    social_links: {
-      linkedin: "https://linkedin.com",
-      twitter: "https://twitter.com",
-    },
-  },
-  {
-    image: assets.images.about_author3,
-    name: "Daymond John",
-    designation: "Vice Chair",
-    bio: "As a business leader and philanthropist, Daymond brings a wealth of experience in strategic growth and innovation. His contributions have been instrumental in our organization's success.",
-    experience: "30+ years in business leadership",
-    achievements: [
-      "Led fundraising efforts that brought in $100 million",
-      "Introduced new innovative programs for organizational growth",
-    ],
-    social_links: {
-      linkedin: "https://linkedin.com",
-      twitter: "https://twitter.com",
-    },
-  },
-  {
-    image: assets.images.about_author4,
-    name: "Dana Puglish",
-    designation: "Head of Marketing",
-    bio: "Dana's expertise in marketing and branding has helped us connect with a broader audience, raising awareness about our mission and the importance of pet adoption.",
-    experience: "10 years in marketing and branding",
-    achievements: [
-      "Launched the highly successful 'Adopt Love' campaign",
-      "Increased social media engagement by 200%",
-    ],
-    social_links: {
-      linkedin: "https://linkedin.com",
-      twitter: "https://twitter.com",
-    },
-  },
+const steps = [
+  { icon: SearchIcon, title: "Search", text: "Browse pets by area, species, breed, age and more. Save the ones you love." },
+  { icon: ForumOutlinedIcon, title: "Connect", text: "Apply online and chat directly with the shelter or owner to arrange a visit." },
+  { icon: FavoriteBorderIcon, title: "Adopt", text: "Meet your match, complete the adoption and welcome your new family member home." },
 ];
 
-const AboutUsPage = () => {
-  return (
-    <>
-    <Meta
-        title="About Us | Petfinder - Pet Adoption Platform & Management System"
-        description="This is the Pet Adoption Platform & Management System About Us Page where all users can show all About Us all information and more."
-      />
+const promises = [
+  { icon: VerifiedUserOutlinedIcon, title: "Verified shelters", text: "Shelters submit documents and are reviewed by our team before earning the verified badge." },
+  { icon: GavelOutlinedIcon, title: "Safe & moderated", text: "Every listing can be reported. Moderators review reports and act on scams or welfare concerns." },
+  { icon: VolunteerActivismOutlinedIcon, title: "Free for adopters", text: "Searching, saving and applying is always free. Shelters can start free and upgrade as they grow." },
+];
 
-      <AboutUsBanner />
-      <AboutServices data={servicesData} />
-      <AboutMembers data={leadershipData} />
-    </>
-  );
-};
+//* About Petfinder: mission, numbers, how it works and our promise
+const AboutUsPage = () => (
+  <>
+    <Meta title="About us | Petfinder" description="Petfinder connects adopters with verified shelters and pet owners." />
+    <PageHeader
+      title="Every pet deserves a"
+      highlight="loving home"
+      crumbs={[{ label: "About" }]}
+      subtitle="Petfinder is an adoption platform that connects families with verified shelters, rescues and responsible owners."
+      image={unsplash("1537151625747-768eb6cf92b2", 600)}
+    />
+
+    <Container sx={{ py: { xs: 5, md: 8 } }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }, gap: 2 }}>
+        {stats.map((s, i) => (
+          <Box key={s.label} className="pf-fade-up" style={{ animationDelay: `${i * 0.08}s` }} sx={{ textAlign: "center", p: 3, borderRadius: 4, bgcolor: "var(--pf-soft)", border: "1px solid", borderColor: "divider" }}>
+            <Typography sx={{ fontFamily: "var(--font-heading), sans-serif", fontWeight: 800, fontSize: { xs: 28, md: 40 }, color: "primary.main" }}>{s.value}</Typography>
+            <Typography color="text.secondary" sx={{ fontWeight: 600 }}>
+              {s.label}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+
+      <Reveal>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: { xs: 4, md: 8 }, alignItems: "center", mt: { xs: 7, md: 10 } }}>
+          <Box sx={{ position: "relative", height: { xs: 260, md: 380 }, borderRadius: 5, overflow: "hidden", boxShadow: "var(--pf-shadow)" }}>
+            <Image src={adoptingGuideImage} alt="Dog waiting for adoption" fill sizes="(max-width: 900px) 100vw, 50vw" style={{ objectFit: "cover" }} />
+          </Box>
+          <Box>
+            <Typography variant="h3" sx={{ fontSize: { xs: "1.6rem", md: "2.2rem" } }}>
+              Our mission
+            </Typography>
+            <Typography color="text.secondary" sx={{ mt: 2, fontSize: 17, lineHeight: 1.8 }}>
+              Too many pets wait in shelters while families search in the wrong places. We bring shelters, rescues and owners onto one trusted
+              platform so adopters can find the right pet quickly and safely, and every pet gets a second chance.
+            </Typography>
+          </Box>
+        </Box>
+      </Reveal>
+
+      <Typography variant="h3" textAlign="center" sx={{ fontSize: { xs: "1.6rem", md: "2.2rem" }, mt: { xs: 7, md: 10 }, mb: 4 }}>
+        How Petfinder works
+      </Typography>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 3 }}>
+        {steps.map(({ icon: Icon, title, text }, i) => (
+          <Reveal key={title} delay={i * 120}>
+            <Box sx={{ position: "relative", p: 4, borderRadius: 4, bgcolor: "background.paper", border: "1px solid", borderColor: "divider", height: "100%" }}>
+              <Typography sx={{ position: "absolute", top: 16, right: 24, fontFamily: "var(--font-heading), sans-serif", fontWeight: 800, fontSize: 48, color: "var(--pf-peach)" }}>
+                {i + 1}
+              </Typography>
+              <Box sx={{ width: 56, height: 56, borderRadius: "50%", bgcolor: "primary.main", color: "#fff", display: "grid", placeItems: "center", boxShadow: "0 0 0 6px var(--pf-primary-light)" }}>
+                <Icon />
+              </Box>
+              <Typography variant="h6" sx={{ mt: 2 }}>
+                {title}
+              </Typography>
+              <Typography color="text.secondary" sx={{ mt: 1 }}>
+                {text}
+              </Typography>
+            </Box>
+          </Reveal>
+        ))}
+      </Box>
+
+      <Box sx={{ mt: { xs: 7, md: 10 }, p: { xs: 3, md: 6 }, borderRadius: 5, bgcolor: "var(--pf-peach)" }}>
+        <Typography variant="h3" textAlign="center" sx={{ fontSize: { xs: "1.6rem", md: "2.2rem" }, mb: 4 }}>
+          Our promise
+        </Typography>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 3 }}>
+          {promises.map(({ icon: Icon, title, text }) => (
+            <Box key={title} sx={{ textAlign: "center" }}>
+              <Icon sx={{ fontSize: 40, color: "var(--pf-rust)" }} />
+              <Typography variant="h6" sx={{ mt: 1 }}>
+                {title}
+              </Typography>
+              <Typography color="text.secondary" sx={{ mt: 1 }}>
+                {text}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      </Box>
+    </Container>
+  </>
+);
 
 export default AboutUsPage;

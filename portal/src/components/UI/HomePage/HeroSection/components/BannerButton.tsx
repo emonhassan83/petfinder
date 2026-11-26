@@ -16,8 +16,8 @@ const BannerButton = ({text}: {text: string}) => {
         borderColor: "white",
         fontWeight: 600,
         "&:hover": {
-          borderColor: "#1F8A70",
-          color: "#1F8A70",
+          borderColor: "primary.main",
+          color: "primary.main",
         },
       }}
     >

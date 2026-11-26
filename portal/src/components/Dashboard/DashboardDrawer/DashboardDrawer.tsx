@@ -13,6 +13,7 @@ import Sidebar from "../Sidebar/Sidebar";
 import { useGetMyProfileQuery } from "@/redux/api/userApi";
 import AccountMenu from "../AccountMenu/AccountMenu";
 import { ReactNode, useState } from "react";
+import ThemeToggle from "@/components/UI/ThemeToggle";
 
 const drawerWidth = 240;
 
@@ -49,9 +50,7 @@ export default function DashboardDrawer({
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
-          background: "#FFF8F0",
           boxShadow: 0,
-          borderBottom: "1px solid lightgray",
         }}
       >
         <Toolbar>
@@ -73,7 +72,7 @@ export default function DashboardDrawer({
             }}
           >
             <Box>
-              <Typography sx={{marginLeft: "15px"}} variant="body2" component="p" color="#00000" fontWeight="600">
+              <Typography sx={{marginLeft: "15px"}} variant="body2" component="p" color="text.primary" fontWeight="600">
               
                 Hello, {isLoading ? "Loading..." : data?.name}!
               </Typography>
@@ -86,7 +85,8 @@ export default function DashboardDrawer({
                 Welcome to pet finder!
               </Typography> */}
             </Box>
-            <Stack direction="row" gap={3}>
+            <Stack direction="row" gap={1} alignItems="center">
+              <ThemeToggle />
               {/* <Avatar alt={data?.name} src={data?.profilePhoto} /> */}
               <AccountMenu/>
             </Stack>

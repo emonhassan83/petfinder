@@ -48,7 +48,7 @@ const MessagesPage = () => {
                 sx={{
                   alignSelf: m.from === "me" ? "flex-end" : "flex-start",
                   bgcolor: m.from === "me" ? "primary.main" : "primary.light",
-                  color: m.from === "me" ? "#fff" : "text.primary",
+                  color: m.from === "me" ? "primary.contrastText" : "text.primary",
                   px: 2,
                   py: 1,
                   borderRadius: 3,

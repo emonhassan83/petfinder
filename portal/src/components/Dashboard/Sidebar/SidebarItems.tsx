@@ -21,9 +21,9 @@ const SidebarItem = ({ item }: IProps) => {
         sx={{
           ...(pathname === linkPath
             ? {
-                borderRight: "3px solid #1B2A2F",
+                borderRight: "3px solid var(--pf-ink)",
                 "& svg": {
-                  color: "#1B2A2F",
+                  color: "text.primary",
                 },
               }
             : {}),

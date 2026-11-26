@@ -1,43 +1,36 @@
 "use client";
 
-import * as React from 'react';
-import AppBar from '@mui/material/AppBar';
-import Toolbar from '@mui/material/Toolbar';
-import CssBaseline from '@mui/material/CssBaseline';
-import useScrollTrigger from '@mui/material/useScrollTrigger';
-import Slide from '@mui/material/Slide';
-import Navbar from './Navbar';
+import * as React from "react";
+import AppBar from "@mui/material/AppBar";
+import Box from "@mui/material/Box";
+import useScrollTrigger from "@mui/material/useScrollTrigger";
+import Slide from "@mui/material/Slide";
+import Navbar from "./Navbar";
 
 interface Props {
   window?: () => Window;
-  children?: any
+  children?: any;
 }
 
-function HideOnScroll(props: Props) {
-  const { window } = props;
-  const trigger = useScrollTrigger({
-    target: window ? window() : undefined,
-  });
-
+function HideOnScroll({ window, children }: Props) {
+  const trigger = useScrollTrigger({ target: window ? window() : undefined });
   return (
     <Slide appear={false} direction="down" in={!trigger}>
-      {props.children}
+      {children}
     </Slide>
   );
 }
 
 export default function ScrollNavbar(props: Props) {
   return (
-    <React.Fragment>
-      <CssBaseline />
+    <>
       <HideOnScroll {...props}>
         <AppBar>
-          <Toolbar>
-            <Navbar />
-          </Toolbar>
+          <Navbar />
         </AppBar>
       </HideOnScroll>
-      <Toolbar />
-    </React.Fragment>
+      {/* Spacer for the fixed bar */}
+      <Box sx={{ height: 72 }} />
+    </>
   );
 }

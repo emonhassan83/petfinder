@@ -13,7 +13,7 @@ import { z } from "zod";
 import LoginIcon from "@mui/icons-material/Login";
 import { useState } from "react";
 import ForgetPasswordModal from "./components/ForgetPasswordModal";
-import Image from "next/image";
+import AuthAside from "@/components/Shared/AuthAside";
 import Meta from "@/components/Meta/MetaData";
 
 const demoCredentials = [
@@ -99,14 +99,7 @@ const LoginPage = () => {
               height: "100%",
             }}
           >
-            {/* Background Image */}
-            <Image
-              src="https://i.ibb.co.com/vxYcdwB/petfinder-auth.png"
-              alt="Login Illustration"
-              layout="fill"
-              objectFit="cover"
-              style={{ borderRadius: "8px" }}
-            />
+            <AuthAside title="Welcome back to" highlight="Petfinder" />
           </Box>
         </Grid>
 
@@ -134,7 +127,7 @@ const LoginPage = () => {
                 }}
               >
                 <Typography variant="h6" fontWeight={500} mb={0.5}>
-                  Welcome To Back!
+                  Welcome back!
                 </Typography>
                 <Typography
                   component="p"
@@ -203,11 +196,11 @@ const LoginPage = () => {
                     key={role}
                   >
                     <div>
-                      <h3 className="text-start text-md text-gray-500">
+                      <h3 className="text-start text-md text-slate">
                         {role}:
                       </h3>
-                      <p className="text-sm text-gray-600">Email - {email}</p>
-                      <p className="text-start text-sm text-gray-600">
+                      <p className="text-sm text-slate">Email - {email}</p>
+                      <p className="text-start text-sm text-slate">
                         Pass - {password}
                       </p>
                     </div>
@@ -241,7 +234,7 @@ const LoginPage = () => {
                 </Box>
               </Link>
             </Typography>
-            <p className="text-sm mt-2 text-center text-gray-600">
+            <p className="text-sm mt-2 text-center text-slate">
               © {new Date().getFullYear()} Petfinder. Crafted with ❤️ by
               Petfinder Team
             </p>

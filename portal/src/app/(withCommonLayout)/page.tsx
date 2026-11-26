@@ -1,27 +1,27 @@
 import Meta from "@/components/Meta/MetaData";
-import DonateSection from "@/components/UI/HomePage/DonateSection/DonateSection";
 import HeroSection from "@/components/UI/HomePage/HeroSection/HeroSection";
-import LearnAboutUs from "@/components/UI/HomePage/LearnAboutUs/LearnAboutUs";
-import OurApproachSection from "@/components/UI/HomePage/OurApproach/OurApproach";
-import OurSolutionSection from "@/components/UI/HomePage/OurSolutionSection/OurSolutionSection";
+import CategoryTiles from "@/components/UI/HomePage/CategoryTiles/CategoryTiles";
 import PetAdoptSection from "@/components/UI/HomePage/PetAdoptSection/PetAdoptSection";
+import AdoptionResources from "@/components/UI/HomePage/AdoptionResources/AdoptionResources";
 import PlanningAdopt from "@/components/UI/HomePage/PlanningAdopt/PlanningAdopt";
-
+import Articles from "@/components/UI/HomePage/Articles/Articles";
+import ShelterCta from "@/components/UI/HomePage/ShelterCta/ShelterCta";
+import Reveal from "@/components/UI/Reveal";
 
 const HomePage = () => {
   return (
     <>
-    <Meta
+      <Meta
         title="Home | Petfinder - Pet Adoption Platform & Management System"
-        description="This is the Pet Adoption Platform & Management System Home Page where all users can show adopt related all info and blogs and more."
+        description="Find adoptable dogs, cats and other pets from verified shelters and owners near you."
       />
-      <HeroSection/>
-      <PetAdoptSection/>
-      <PlanningAdopt/>
-      <OurApproachSection/>
-      <OurSolutionSection/>
-      <LearnAboutUs/>
-      <DonateSection/>
+      <HeroSection />
+      <CategoryTiles />
+      <Reveal><PetAdoptSection /></Reveal>
+      <Reveal><AdoptionResources /></Reveal>
+      <Reveal><PlanningAdopt /></Reveal>
+      <Reveal><Articles /></Reveal>
+      <Reveal><ShelterCta /></Reveal>
     </>
   );
 };

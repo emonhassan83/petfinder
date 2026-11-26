@@ -1,20 +1,29 @@
-import React from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useRef, useState } from "react";
+import { Alert, Animated, Pressable, Share, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
-import { Ionicons } from "@expo/vector-icons";
-import { colors, radius } from "../theme";
-import { pets } from "../data/mock";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { colors, needs, radius, shadow } from "../theme";
+import { pets, shelters } from "../data/mock";
 import { useAppState } from "../state/AppState";
+import { ageLabel, GenderIcon } from "../components/PetCard";
+
+const HERO = 340;
 
 export const PetDetailScreen = ({ route, navigation }: any) => {
   const pet = pets.find((p) => p.id === route.params.id);
   const { favorites, toggleFavorite, apply, startConversation } = useAppState();
+  const insets = useSafeAreaInsets();
+  const [expanded, setExpanded] = useState(false);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   if (!pet) return <Text style={{ padding: 24 }}>This pet is no longer available.</Text>;
   const fav = favorites.includes(pet.id);
+  const shelter = shelters.find((s) => s.id === pet.shelterId);
+  const pronoun = pet.gender === "Female" ? "she" : "he";
 
   const onApply = () =>
-    Alert.alert(`Apply to adopt ${pet.name}?`, "The shelter will review your application and message you.", [
+    Alert.alert(`Adopt ${pet.name}?`, "The shelter will review your application and message you.", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Apply",
@@ -25,41 +34,100 @@ export const PetDetailScreen = ({ route, navigation }: any) => {
       },
     ]);
 
-  const onChat = () => {
-    const id = startConversation(pet.id, pet.shelter);
-    navigation.navigate("Chat", { id });
+  const onChat = () => navigation.navigate("Chat", { id: startConversation(pet.id, pet.shelter) });
+
+  //* Parallax: the photo moves slower than the sheet and stretches on pull-down
+  const heroStyle = {
+    transform: [
+      { translateY: scrollY.interpolate({ inputRange: [-HERO, 0, HERO], outputRange: [-HERO / 2, 0, HERO * 0.4] }) },
+      { scale: scrollY.interpolate({ inputRange: [-HERO, 0], outputRange: [2, 1], extrapolateRight: "clamp" }) },
+    ],
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScrollView>
-        <Image source={{ uri: pet.image }} style={styles.image} contentFit="cover" accessibilityLabel={pet.name} />
-        <View style={styles.body}>
-          <View style={styles.row}>
-            <Text style={styles.name}>{pet.name}</Text>
+    <View style={{ flex: 1, backgroundColor: colors.white }}>
+      <Animated.ScrollView
+        scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+        contentContainerStyle={{ paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View style={[styles.hero, { backgroundColor: pet.tint }, heroStyle]}>
+          <Image source={{ uri: pet.image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} accessibilityLabel={pet.name} />
+          <View style={styles.dots}>
+            {[0, 1, 2, 3].map((i) => (
+              <View key={i} style={[styles.dot, i === 0 && styles.dotOn]} />
+            ))}
+          </View>
+        </Animated.View>
+
+        <View style={styles.sheet}>
+          <View style={styles.titleRow}>
+            <View style={{ flex: 1 }}>
+              <View style={styles.nameRow}>
+                <Text style={styles.name}>{pet.name}</Text>
+                <GenderIcon gender={pet.gender} size={24} />
+              </View>
+              <Text style={styles.meta}>
+                {pet.breed} • {ageLabel(pet.age)} • {pet.size}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => Share.share({ message: `Meet ${pet.name}, a ${pet.breed} looking for a home on Petfinder.` })}
+              accessibilityRole="button"
+              accessibilityLabel="Share"
+              style={styles.iconBtn}
+            >
+              <Ionicons name="share-social-outline" size={20} color={colors.primary} />
+            </Pressable>
             <Pressable
               onPress={() => toggleFavorite(pet.id)}
               accessibilityRole="button"
               accessibilityLabel={fav ? "Remove from favorites" : "Save to favorites"}
-              hitSlop={8}
+              style={[styles.iconBtn, fav && { backgroundColor: colors.primaryLight }]}
             >
-              <Ionicons name={fav ? "heart" : "heart-outline"} size={28} color={colors.accent} />
+              <Ionicons name={fav ? "heart" : "heart-outline"} size={20} color={colors.primary} />
             </Pressable>
           </View>
-          <Text style={styles.meta}>
-            {pet.breed} · {pet.age} {pet.age === 1 ? "year" : "years"} · {pet.gender} · {pet.location}
+
+          <Text style={styles.about} numberOfLines={expanded ? undefined : 3}>
+            {pet.about}
           </Text>
-          <View style={styles.shelter}>
-            <Ionicons name={pet.verified ? "shield-checkmark" : "person-circle-outline"} size={20} color={pet.verified ? colors.primary : colors.slate} />
-            <Text style={{ color: colors.ink, fontWeight: "600" }}>
-              {pet.shelter}
-              {pet.verified ? " · Verified" : ""}
-            </Text>
+          <Pressable onPress={() => setExpanded((v) => !v)} accessibilityRole="button" hitSlop={8}>
+            <Text style={styles.more}>{expanded ? "SEE LESS" : "SEE MORE"}</Text>
+          </Pressable>
+
+          <Text style={styles.label}>Published by</Text>
+          <View style={styles.publisher}>
+            <View style={[styles.logo, { backgroundColor: shelter?.tint ?? colors.primaryLight }]}>
+              <Ionicons name={shelter?.icon ?? "home"} size={20} color={colors.primaryDark} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.shelterName}>
+                {pet.shelter} {pet.verified && <MaterialCommunityIcons name="check-decagram" size={14} color={colors.male} />}
+              </Text>
+              <Text style={styles.shelterMeta}>
+                <Ionicons name="location-outline" size={12} /> {pet.distanceKm} km from you
+              </Text>
+            </View>
+            <Pressable onPress={onChat} accessibilityRole="button" style={styles.outlineBtn}>
+              <Text style={styles.outlineText}>Message</Text>
+            </Pressable>
           </View>
-          <Text style={styles.h}>About</Text>
-          <Text style={styles.p}>{pet.about}</Text>
-          <Text style={styles.h}>Adoption requirements</Text>
-          <Text style={styles.p}>{pet.requirements}</Text>
+
+          <Text style={[styles.section]}>All {pronoun} needs from you is</Text>
+          <View style={styles.needs}>
+            {needs.map((n) => (
+              <View key={n.key} style={[styles.need, { backgroundColor: n.bg }]}>
+                <MaterialCommunityIcons name={n.icon} size={24} color={n.fg} />
+                <Text style={[styles.needText, { color: n.fg }]}>{n.key}</Text>
+              </View>
+            ))}
+          </View>
+
+          <Text style={styles.label}>Adoption requirements</Text>
+          <Text style={styles.about}>{pet.requirements}</Text>
+
           <Pressable
             onPress={() => Alert.alert("Report listing", "Reporting connects to moderation once the backend is live.")}
             accessibilityRole="button"
@@ -67,13 +135,21 @@ export const PetDetailScreen = ({ route, navigation }: any) => {
             <Text style={styles.report}>Report this listing</Text>
           </Pressable>
         </View>
-      </ScrollView>
-      <View style={styles.bar}>
-        <Pressable onPress={onChat} accessibilityRole="button" style={[styles.btn, styles.btnOutline]}>
-          <Text style={[styles.btnText, { color: colors.primary }]}>Chat</Text>
-        </Pressable>
-        <Pressable onPress={onApply} accessibilityRole="button" style={[styles.btn, { flex: 2 }]}>
-          <Text style={styles.btnText}>Apply to adopt</Text>
+      </Animated.ScrollView>
+
+      {/* Floating back button */}
+      <Pressable
+        onPress={() => navigation.goBack()}
+        accessibilityRole="button"
+        accessibilityLabel="Back"
+        style={[styles.back, { top: insets.top + 8 }]}
+      >
+        <Ionicons name="chevron-back" size={24} color={colors.white} />
+      </Pressable>
+
+      <View style={[styles.bar, { paddingBottom: insets.bottom + 12 }]}>
+        <Pressable onPress={onApply} accessibilityRole="button" style={({ pressed }) => [styles.cta, pressed && { transform: [{ scale: 0.98 }] }]}>
+          <Text style={styles.ctaText}>Adopt {pet.name}</Text>
         </Pressable>
       </View>
     </View>
@@ -81,17 +157,32 @@ export const PetDetailScreen = ({ route, navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  image: { width: "100%", height: 300, backgroundColor: colors.primaryLight },
-  body: { padding: 20, gap: 8 },
-  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  name: { fontSize: 28, fontWeight: "800", color: colors.ink },
-  meta: { color: colors.slate, fontSize: 15 },
-  shelter: { flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8 },
-  h: { fontSize: 17, fontWeight: "700", color: colors.ink, marginTop: 12 },
-  p: { color: colors.slate, fontSize: 15, lineHeight: 22 },
-  report: { color: colors.danger, marginTop: 24, textAlign: "center" },
-  bar: { flexDirection: "row", gap: 12, padding: 16, backgroundColor: colors.white, borderTopWidth: 1, borderTopColor: colors.line },
-  btn: { flex: 1, backgroundColor: colors.primary, paddingVertical: 14, borderRadius: radius.pill, alignItems: "center" },
-  btnOutline: { backgroundColor: colors.white, borderWidth: 1.5, borderColor: colors.primary },
-  btnText: { color: colors.white, fontWeight: "700", fontSize: 16 },
+  hero: { height: HERO, overflow: "hidden" },
+  dots: { position: "absolute", bottom: 40, alignSelf: "center", flexDirection: "row", gap: 6 },
+  dot: { width: 7, height: 7, borderRadius: 4, borderWidth: 1, borderColor: colors.white },
+  dotOn: { backgroundColor: colors.white },
+  sheet: { backgroundColor: colors.white, borderTopLeftRadius: 28, borderTopRightRadius: 28, marginTop: -28, padding: 24, gap: 6 },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  name: { fontSize: 30, fontWeight: "800", color: colors.ink },
+  meta: { color: colors.slate, fontSize: 14, marginTop: 2 },
+  iconBtn: { width: 44, height: 44, borderRadius: 12, borderWidth: 1.2, borderColor: "#F3D5CE", alignItems: "center", justifyContent: "center" },
+  about: { color: "#5F6170", fontSize: 14, lineHeight: 22, marginTop: 14 },
+  more: { color: colors.primary, fontSize: 12, fontWeight: "700", marginTop: 2 },
+  label: { color: colors.slate, fontSize: 13, marginTop: 22 },
+  publisher: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 10 },
+  logo: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  shelterName: { color: colors.ink, fontWeight: "700", fontSize: 15 },
+  shelterMeta: { color: colors.slate, fontSize: 12, marginTop: 3 },
+  outlineBtn: { borderWidth: 1.2, borderColor: colors.line, borderRadius: radius.sm, paddingHorizontal: 16, paddingVertical: 10 },
+  outlineText: { color: colors.primary, fontWeight: "700" },
+  section: { color: colors.ink, fontSize: 16, fontWeight: "600", marginTop: 26, marginBottom: 8 },
+  needs: { flexDirection: "row", gap: 10 },
+  need: { flex: 1, aspectRatio: 1, borderRadius: radius.md, alignItems: "center", justifyContent: "center", gap: 6 },
+  needText: { fontSize: 13, fontWeight: "600" },
+  report: { color: colors.slate, marginTop: 28, textAlign: "center", textDecorationLine: "underline" },
+  back: { position: "absolute", left: 16, width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(0,0,0,.25)", alignItems: "center", justifyContent: "center" },
+  bar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 24, paddingTop: 12, backgroundColor: colors.white, ...shadow },
+  cta: { backgroundColor: colors.primary, borderRadius: radius.sm, paddingVertical: 17, alignItems: "center" },
+  ctaText: { color: colors.white, fontSize: 17, fontWeight: "700" },
 });

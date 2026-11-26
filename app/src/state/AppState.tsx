@@ -1,10 +1,18 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Application, conversations as seedConversations, initialApplications } from "../data/mock";
+import { Application, Size, conversations as seedConversations, initialApplications } from "../data/mock";
+
+export type Prefs = { species: string[]; genders: string[]; size: Size; location: string };
+const defaultPrefs: Prefs = { species: ["Dog", "Cat"], genders: ["Male", "Female"], size: "Medium", location: "Dhanmondi, Dhaka" };
 
 type Conversation = (typeof seedConversations)[number];
 
 type State = {
+  ready: boolean;
+  onboarded: boolean;
+  prefs: Prefs;
+  savePrefs: (p: Prefs) => void;
+  setPrefs: (p: Prefs) => void;
   favorites: string[];
   toggleFavorite: (id: string) => void;
   applications: Application[];
@@ -16,16 +24,34 @@ type State = {
 
 const Ctx = createContext<State | null>(null);
 const FAV_KEY = "petfinder:favorites";
+const PREFS_KEY = "petfinder:prefs";
 
 export const AppStateProvider = ({ children }: { children: React.ReactNode }) => {
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [ready, setReady] = useState(false);
+  const [onboarded, setOnboarded] = useState(false);
+  const [prefs, setPrefs] = useState<Prefs>(defaultPrefs);
   const [applications, setApplications] = useState<Application[]>(initialApplications);
   const [conversations, setConversations] = useState<Conversation[]>(seedConversations);
 
   useEffect(() => {
-    AsyncStorage.getItem(FAV_KEY)
-      .then((v) => v && setFavorites(JSON.parse(v)))
-      .catch(() => {});
+    AsyncStorage.multiGet([FAV_KEY, PREFS_KEY])
+      .then(([[, fav], [, p]]) => {
+        if (fav) setFavorites(JSON.parse(fav));
+        if (p) {
+          setPrefs(JSON.parse(p));
+          setOnboarded(true);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setReady(true));
+  }, []);
+
+  //* Called from onboarding: remembers the answers so onboarding shows once.
+  const savePrefs = useCallback((p: Prefs) => {
+    setPrefs(p);
+    setOnboarded(true);
+    AsyncStorage.setItem(PREFS_KEY, JSON.stringify(p)).catch(() => {});
   }, []);
 
   const toggleFavorite = useCallback((id: string) => {
@@ -57,7 +83,7 @@ export const AppStateProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
   return (
-    <Ctx.Provider value={{ favorites, toggleFavorite, applications, apply, conversations, sendMessage, startConversation }}>
+    <Ctx.Provider value={{ ready, onboarded, prefs, savePrefs, setPrefs, favorites, toggleFavorite, applications, apply, conversations, sendMessage, startConversation }}>
       {children}
     </Ctx.Provider>
   );

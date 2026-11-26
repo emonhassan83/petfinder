@@ -1,232 +1,98 @@
-import {
-  Box,
-  Typography,
-  Button,
-  TextField,
-  MenuItem,
-} from "@mui/material";
+import { Box, Button, Chip, MenuItem, TextField, Typography } from "@mui/material";
+import TuneIcon from "@mui/icons-material/Tune";
 
-const speciesOptions = ["Dog", "Cat", "Bird", "Rabbit", "Others"];
-const breedOptions = [
-  "Labrador Retriever",
-  "Siamese",
-  "German Shepherd",
-  "Maine Coon",
-  "Canary",
-  "Holland Lop",
-];
-const sizeOptions = ["Large", "Medium", "Small"];
-const colorOptions = [
-  "White",
-  "Cream",
-  "Black",
-  "Gray",
-  "Golden",
-  "Brown Tabby",
-  "Brown and White",
-];
-const genderOptions = ["Male", "Female", "Other"];
+const breedOptions = ["Labrador", "Golden Retriever", "Beagle", "Corgi", "Pug", "Jack Russell", "Siberian Husky", "Tabby", "Siamese", "Maine Coon", "Domestic Shorthair", "Holland Lop"];
+const sizeOptions = ["Small", "Medium", "Large"];
+const colorOptions = ["White", "Cream", "Black", "Gray", "Golden", "Brown Tabby", "Brown and White"];
+const genderOptions = ["Male", "Female"];
 
-const FilterSidebar = ({
-  filters,
-  setFilters,
-}: {
-  filters: any;
-  setFilters: React.Dispatch<React.SetStateAction<any>>;
-}) => {
-  const handleChange = (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = event.target;
+export const emptyFilters = { species: "", breed: "", age: "", size: "", color: "", gender: "" };
 
-    setFilters((prevFilters: any) => {
-      const newFilters = { ...prevFilters };
-      if (value) {
-        newFilters[name] = value;
-      } else {
-        delete newFilters[name];
-      }
-      return newFilters;
-    });
-  };
+const ChipGroup = ({ label, name, options, value, onPick }: { label: string; name: string; options: string[]; value: string; onPick: (n: string, v: string) => void }) => (
+  <Box sx={{ mt: 2.5 }}>
+    <Typography sx={{ fontWeight: 700, fontSize: 14, mb: 1 }}>{label}</Typography>
+    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+      {options.map((o) => {
+        const on = value === o;
+        return (
+          <Chip
+            key={o}
+            label={o}
+            clickable
+            onClick={() => onPick(name, on ? "" : o)}
+            aria-pressed={on}
+            color={on ? "primary" : "default"}
+            variant={on ? "filled" : "outlined"}
+          />
+        );
+      })}
+    </Box>
+  </Box>
+);
 
-  const handleReset = () => {
-    setFilters({
-      species: "",
-      breed: "",
-      age: "",
-      size: "",
-      color: "",
-      gender: "",
-    });
-  };
+//* Petfinder-style filter card. Species is chosen with the tabs above the results.
+const FilterSidebar = ({ filters, setFilters }: { filters: any; setFilters: React.Dispatch<React.SetStateAction<any>> }) => {
+  const set = (name: string, value: string) => setFilters((prev: any) => ({ ...prev, [name]: value }));
+  const active = Object.entries(filters).filter(([k, v]) => k !== "species" && v).length;
 
   return (
     <Box
+      component="aside"
+      aria-label="Filters"
       sx={{
-        width: { xs: "100%", md: "25%" },
-        padding: {xs: 0, sm: 2},
-        backgroundColor: "#FFFFFF",
-        borderRadius: 2,
-        boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.1)",
+        width: { xs: "100%", md: 280 },
+        flexShrink: 0,
+        alignSelf: "flex-start",
+        position: { md: "sticky" },
+        top: { md: 96 },
+        p: 3,
+        mb: { xs: 3, md: 0 },
+        bgcolor: "background.paper",
+        borderRadius: 4,
+        border: "1px solid",
+        borderColor: "divider",
       }}
     >
-      <Typography variant="h6" component="h3" sx={{xs: 0, sm: 2}} fontWeight={600}>
-        Filter Pets
-      </Typography>
-      <TextField
-        select
-        label="Species"
-        name="species"
-        value={filters.species}
-        onChange={handleChange}
-        fullWidth
-        margin="normal"
-        size="small"
-        sx={{
-          backgroundColor: "#fff",
-          borderRadius: "4px",
-          "& .MuiOutlinedInput-root": {
-            "&:hover fieldset": {
-              borderColor: "#1F8A70",
-            },
-          },
-        }}
-      >
-        {speciesOptions.map((species, index) => (
-          <MenuItem value={species} key={index}>
-            {species}
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Typography variant="h6" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <TuneIcon color="primary" /> Filters {active > 0 && <Chip size="small" color="secondary" label={active} />}
+        </Typography>
+        <Button variant="text" size="small" onClick={() => setFilters({ ...emptyFilters, species: filters.species })} disabled={!active}>
+          Reset
+        </Button>
+      </Box>
+
+      <TextField select fullWidth size="small" label="Breed" value={filters.breed} onChange={(e) => set("breed", e.target.value)} sx={{ mt: 2.5 }}>
+        <MenuItem value="">Any breed</MenuItem>
+        {breedOptions.map((b) => (
+          <MenuItem key={b} value={b}>
+            {b}
           </MenuItem>
         ))}
       </TextField>
+
       <TextField
-        select
-        label="Breed"
-        name="breed"
-        value={filters.breed}
-        onChange={handleChange}
         fullWidth
-        margin="normal"
         size="small"
-        sx={{
-          backgroundColor: "#fff",
-          borderRadius: "4px",
-          "& .MuiOutlinedInput-root": {
-            "&:hover fieldset": {
-              borderColor: "#1F8A70",
-            },
-          },
-        }}
-      >
-        {breedOptions.map((breed, index) => (
-          <MenuItem value={breed} key={index}>
-            {breed}
-          </MenuItem>
-        ))}
-      </TextField>
-      <TextField
-        label="Age"
-        name="age"
+        type="number"
+        label="Age (years)"
         value={filters.age}
-        onChange={handleChange}
-        fullWidth
-        margin="normal"
-        size="small"
-        sx={{
-          backgroundColor: "#fff",
-          borderRadius: "4px",
-          "& .MuiOutlinedInput-root": {
-            "&:hover fieldset": {
-              borderColor: "#1F8A70",
-            },
-          },
-        }}
+        onChange={(e) => set("age", e.target.value)}
+        inputProps={{ min: 0, max: 30 }}
+        sx={{ mt: 2 }}
       />
-      <TextField
-        select
-        label="Size"
-        name="size"
-        value={filters.size}
-        onChange={handleChange}
-        fullWidth
-        margin="normal"
-        size="small"
-        sx={{
-          backgroundColor: "#fff",
-          borderRadius: "4px",
-          "& .MuiOutlinedInput-root": {
-            "&:hover fieldset": {
-              borderColor: "#1F8A70",
-            },
-          },
-        }}
-      >
-        {sizeOptions.map((size, index) => (
-          <MenuItem value={size} key={index}>
-            {size}
+
+      <ChipGroup label="Size" name="size" options={sizeOptions} value={filters.size} onPick={set} />
+      <ChipGroup label="Gender" name="gender" options={genderOptions} value={filters.gender} onPick={set} />
+
+      <TextField select fullWidth size="small" label="Colour" value={filters.color} onChange={(e) => set("color", e.target.value)} sx={{ mt: 2.5 }}>
+        <MenuItem value="">Any colour</MenuItem>
+        {colorOptions.map((c) => (
+          <MenuItem key={c} value={c}>
+            {c}
           </MenuItem>
         ))}
       </TextField>
-      <TextField
-        select
-        label="Color"
-        name="color"
-        value={filters.color}
-        onChange={handleChange}
-        fullWidth
-        margin="normal"
-        size="small"
-        sx={{
-          backgroundColor: "#fff",
-          borderRadius: "4px",
-          "& .MuiOutlinedInput-root": {
-            "&:hover fieldset": {
-              borderColor: "#1F8A70",
-            },
-          },
-        }}
-      >
-        {colorOptions.map((color, index) => (
-          <MenuItem value={color} key={index}>
-            {color}
-          </MenuItem>
-        ))}
-      </TextField>
-      <TextField
-        select
-        label="Gender"
-        name="gender"
-        value={filters.gender}
-        onChange={handleChange}
-        fullWidth
-        margin="normal"
-        size="small"
-        sx={{
-          backgroundColor: "#fff",
-          borderRadius: "4px",
-          "& .MuiOutlinedInput-root": {
-            "&:hover fieldset": {
-              borderColor: "#1F8A70",
-            },
-          },
-        }}
-      >
-        {genderOptions.map((gender, index) => (
-          <MenuItem value={gender} key={index}>
-            {gender}
-          </MenuItem>
-        ))}
-      </TextField>
-      <Button
-        variant="outlined"
-        color="primary"
-        onClick={handleReset}
-        sx={{ mt: 2, mb: {xs: 4, sm: 0}, textTransform: "none" }}
-        fullWidth
-        size="small"
-      >
-        Reset Filters
-      </Button>
     </Box>
   );
 };

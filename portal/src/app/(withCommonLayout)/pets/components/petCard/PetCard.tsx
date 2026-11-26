@@ -12,11 +12,12 @@ const PetCard = ({ pet }: { pet: any }) => {
       sx={{
         height: "100%",
         overflow: "hidden",
-        transition: "transform 0.2s, box-shadow 0.2s",
-        "&:hover": { transform: "translateY(-4px)", boxShadow: 1 },
+        "&:hover": { transform: "translateY(-6px)", boxShadow: "var(--pf-shadow)", borderColor: "primary.main" },
+        "& img": { transition: "transform .6s cubic-bezier(0.22, 1, 0.36, 1)" },
+        "&:hover img": { transform: "scale(1.06)" },
       }}
     >
-      <Box sx={{ position: "relative", height: 240 }}>
+      <Box sx={{ position: "relative", height: 240, overflow: "hidden" }}>
         <Link href={`/pets/${pet.id}`} aria-label={`View ${pet.name}`}>
           <Image
             src={pet.image}
@@ -33,7 +34,7 @@ const PetCard = ({ pet }: { pet: any }) => {
           <Typography variant="h6" component="h3">
             {pet.name}
           </Typography>
-          <Chip size="small" label={pet.gender || pet.species} color="primary" variant="outlined" />
+          <Chip size="small" label={pet.gender || pet.species} sx={{ bgcolor: "var(--pf-peach)", color: "var(--pf-rust)" }} />
         </Box>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
           {pet.breed} · {pet.age} {pet.age === 1 ? "year" : "years"}
@@ -41,7 +42,7 @@ const PetCard = ({ pet }: { pet: any }) => {
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
           {pet.description?.length > 70 ? pet.description.slice(0, 70) + "…" : pet.description}
         </Typography>
-        <Typography variant="caption" color="text.secondary" display="flex" alignItems="center">
+        <Typography variant="body2" display="flex" alignItems="center" sx={{ color: "primary.main", fontWeight: 700 }}>
           <LocationOnIcon fontSize="small" sx={{ mr: 0.5 }} /> {pet.location}
         </Typography>
       </CardContent>

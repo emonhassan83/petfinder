@@ -32,7 +32,7 @@ const FillPetButton: React.FC<FillPetButtonProps> = ({
         borderRadius: 20,
         boxShadow: "0px 4px 15px rgba(0, 0, 0, 0.1)",
         "&:hover": {
-          backgroundColor: "#1F8A70",
+          backgroundColor: "primary.main",
         },
       }}
     >

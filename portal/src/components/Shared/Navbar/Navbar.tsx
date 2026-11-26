@@ -1,184 +1,145 @@
 "use client";
 
 import {
-  AppBar,
   Box,
   Container,
   CssBaseline,
-  Divider,
   Drawer,
   IconButton,
   List,
-  ListItem,
   ListItemButton,
   ListItemText,
   Toolbar,
   Typography,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
+import { Divider } from "@mui/material";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
+import ThemeToggle from "@/components/UI/ThemeToggle";
+import Logo from "../Logo";
 
 interface NavbarProps {
   accessToken?: string;
   window?: () => Window;
 }
 
-const drawerWidth = 240;
+const AuthButton = dynamic(() => import("@/components/UI/AuthButton/AuthButton"), { ssr: false });
+
 const navItems = [
-  // { label: "Home", href: "/" },
-  { label: "Pets", href: "/pets" },
-  { label: "About Us", href: "/about-us" },
-  { label: "Blogs", href: "/blogs" },
-  { label: "Donate Us", href: "/donate" },
+  { label: "Home", href: "/" },
+  { label: "Find a pet", href: "/pets" },
+  { label: "Shelters & Rescues", href: "/shelters" },
+  { label: "Resources", href: "/blogs" },
+  { label: "Donate", href: "/donate" },
+  { label: "About", href: "/about-us" },
 ];
 
 export default function Navbar({ accessToken, window }: NavbarProps) {
-  const AuthButton = dynamic(
-    () => import("@/components/UI/AuthButton/AuthButton"),
-    { ssr: false }
-  );
-
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname() || "/";
+  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+  const items = accessToken ? [...navItems, { label: "Dashboard", href: "/dashboard" }] : navItems;
 
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
-  };
+  //* Teal underline that slides in on hover and stays on the active route
+  const linkSx = (href: string) => ({
+    color: isActive(href) ? "primary.main" : "text.primary",
+    fontWeight: isActive(href) ? 700 : 600,
+    fontSize: 15,
+    position: "relative",
+    py: 1,
+    transition: "color .2s ease",
+    "&::after": {
+      content: '""',
+      position: "absolute",
+      left: "-6px",
+      right: "-6px",
+      bottom: 0,
+      height: 2,
+      borderRadius: 2,
+      bgcolor: "primary.main",
+      transform: isActive(href) ? "scaleX(1)" : "scaleX(0)",
+      transformOrigin: "center",
+      transition: "transform .25s cubic-bezier(0.22, 1, 0.36, 1)",
+    },
+    "&:hover": { color: "primary.main" },
+    "&:hover::after": { transform: "scaleX(1)" },
+  });
 
-  const drawer = (
-    <Box onClick={handleDrawerToggle} sx={{ textAlign: "center" }}>
-      <Typography variant="h6" sx={{ my: 2 }}>
-        Petfinder
-      </Typography>
-      <Divider />
-      <List>
-        {navItems.map((item) => (
-          <ListItem key={item.label} disablePadding>
-            <ListItemButton
-              sx={{ textAlign: "center" }}
-              component={Link}
-              href={item.href}
-            >
-              <ListItemText primary={item.label} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-        {accessToken && (
-          <ListItem disablePadding>
-            <ListItemButton
-              sx={{ textAlign: "center" }}
-              component={Link}
-              href="/dashboard"
-            >
-              <ListItemText primary="Dashboard" />
-            </ListItemButton>
-          </ListItem>
-        )}
-      </List>
-    </Box>
-  );
-
-  const container =
-    window !== undefined ? () => window().document.body : undefined;
+  const container = window !== undefined ? () => window().document.body : undefined;
 
   return (
-    <Box sx={{ display: "flex", height: "80px" }}>
+    <Box sx={{ display: "flex", height: "72px" }}>
       <CssBaseline />
-      <AppBar component="nav" sx={{ boxShadow: "none", height: "80px" }}>
+      <Box component="nav" aria-label="Main" sx={{ width: "100%", height: "72px", display: "flex", alignItems: "center" }}>
         <Container>
-          <Toolbar
-            sx={{
-              maxHeight: "60px",
-              height: "60px",
-              marginTop: 1,
-              alignItems: "center",
-            }}
-          >
-            {/* Mobile Menu Icon */}
+          <Toolbar disableGutters sx={{ gap: 2 }}>
             <IconButton
               color="inherit"
-              aria-label="open drawer"
+              aria-label="Open menu"
               edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2, display: { sm: "none" } }}
+              onClick={() => setMobileOpen(true)}
+              sx={{ display: { lg: "none" } }}
             >
               <MenuIcon />
             </IconButton>
 
-            {/* Logo */}
-            <Typography
-              variant="h6"
-              component={Link}
-              href="/"
-              sx={{ flexGrow: 1, display: { xs: "none", sm: "block" } }}
-            >
-              Petfinder
-            </Typography>
-
-            {/* Desktop Navigation */}
-            <Box sx={{ display: { xs: "none", sm: "block" } }}>
-              {navItems.map((item) => (
-                <Typography
-                  key={item.label}
-                  sx={{ color: "text.primary", mx: 3 }}
-                  component={Link}
-                  href={item.href}
-                >
-                  {item.label}
-                </Typography>
-              ))}
-              {accessToken && (
-                <Typography
-                  sx={{ color: "text.primary", ml: 4 }}
-                  component={Link}
-                  href="/dashboard"
-                >
-                  Dashboard
-                </Typography>
-              )}
+            <Box sx={{ flexGrow: 1 }}>
+              <Logo />
             </Box>
 
-            {/* Authentication Button */}
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: { xs: "flex-end", sm: "flex-start" },
-                flexGrow: { xs: 1, sm: 0 },
-                marginRight: { xs: -2, sm: 0 },
-              }}
-            >
+            <Box component="ul" sx={{ display: { xs: "none", lg: "flex" }, gap: 3.5, listStyle: "none", m: 0, p: 0, mr: 1 }}>
+              {items.map((item) => (
+                <li key={item.href}>
+                  <Typography component={Link} href={item.href} sx={linkSx(item.href)} aria-current={isActive(item.href) ? "page" : undefined}>
+                    {item.label}
+                  </Typography>
+                </li>
+              ))}
+            </Box>
+
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <ThemeToggle />
               <AuthButton />
             </Box>
           </Toolbar>
         </Container>
-      </AppBar>
-
-      {/* Mobile Drawer */}
-      <nav>
-        <Drawer
-          container={container}
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true,
-          }}
-          sx={{
-            display: { xs: "block", sm: "none" },
-            "& .MuiDrawer-paper": {
-              boxSizing: "border-box",
-              width: drawerWidth,
-            },
-          }}
-        >
-          {drawer}
-        </Drawer>
-      </nav>
-
-      <Box component="main" sx={{ p: 3 }}>
-        <Toolbar />
       </Box>
+
+      <Drawer
+        container={container}
+        variant="temporary"
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        ModalProps={{ keepMounted: true }}
+        sx={{ display: { xs: "block", lg: "none" }, "& .MuiDrawer-paper": { width: 280, p: 2 } }}
+      >
+        <Box onClick={() => setMobileOpen(false)}>
+          <Box sx={{ mb: 2 }}>
+            <Logo />
+          </Box>
+          <List>
+            {items.map((item) => (
+              <ListItemButton
+                key={item.href}
+                component={Link}
+                href={item.href}
+                selected={isActive(item.href)}
+                sx={{ borderRadius: 2, mb: 0.5, "&.Mui-selected": { bgcolor: "primary.light", color: "primary.main" } }}
+              >
+                <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: 700 }} />
+              </ListItemButton>
+            ))}
+            <ListItemButton component={Link} href="/dashboard/user/favorites" sx={{ borderRadius: 2 }}>
+              <ListItemText primary="Saved pets" primaryTypographyProps={{ fontWeight: 700 }} />
+            </ListItemButton>
+          </List>
+        </Box>
+        <Divider sx={{ my: 1 }} />
+        <ThemeToggle withLabel />
+      </Drawer>
     </Box>
   );
 }

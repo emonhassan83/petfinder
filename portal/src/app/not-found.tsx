@@ -1,115 +1,33 @@
-/* eslint-disable react/no-unescaped-entities */
-import { Container, Typography, Button, Paper, Grid } from "@mui/material";
+"use client";
+
+import { Box, Button, Container, Typography } from "@mui/material";
+import PetsIcon from "@mui/icons-material/Pets";
 import Link from "next/link";
 
-const NotFoundPage = () => {
-  return (
-    <Container 
-      maxWidth="xl" 
-      sx={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh', 
-        textAlign: 'center',
-        background: 'linear-gradient(135deg, #f5f5f5, #e0e0e0)' 
-      }}
-    >
-      <Typography 
-        variant="h1" 
-        component="h1" 
-        color="primary" 
-        sx={{ 
-          fontWeight: 700, 
-          fontSize: { xs: '3rem', sm: "5rem", md: '6rem', lg: '7rem' }, 
-          mb: { xs: 2, sm: 4 },
-          mt: { xs: 5, sm: 8, md: 10 }
-        }}
-      >
+const NotFoundPage = () => (
+  <Box sx={{ minHeight: "100vh", bgcolor: "var(--pf-peach)", display: "flex", alignItems: "center", position: "relative", overflow: "hidden" }}>
+    <PetsIcon className="pf-float" sx={{ position: "absolute", top: "18%", left: "12%", fontSize: 60, color: "secondary.main", opacity: 0.25 }} />
+    <PetsIcon className="pf-float" sx={{ position: "absolute", bottom: "16%", right: "14%", fontSize: 80, color: "secondary.main", opacity: 0.2, animationDelay: "1s" }} />
+    <Container sx={{ textAlign: "center", position: "relative" }}>
+      <Typography className="pf-fade-up" sx={{ fontFamily: "var(--font-heading), sans-serif", fontWeight: 800, fontSize: { xs: "6rem", md: "9rem" }, lineHeight: 1, color: "var(--pf-rust)" }}>
         404
       </Typography>
-      <Typography 
-        variant="h4" 
-        component="h2" 
-        color="text.primary" 
-        sx={{ 
-          mb: { xs: 2, sm: 3, md: 4 }, 
-          fontWeight: 600 
-        }}
-      >
-        Oops! Page Not Found
+      <Typography variant="h3" className="pf-fade-up pf-delay-1" sx={{ fontSize: { xs: "1.6rem", md: "2.4rem" }, mt: 2 }}>
+        This page wandered off
       </Typography>
-      <Typography 
-        variant="body1" 
-        color="text.secondary" 
-        sx={{ 
-          mb: { xs: 3, sm: 4, md: 5 } 
-        }}
-      >
-        It looks like the page you're trying to reach doesn't exist. Perhaps it was moved or deleted, or maybe you mistyped the URL.
+      <Typography color="text.secondary" className="pf-fade-up pf-delay-2" sx={{ mt: 1.5, mb: 4 }}>
+        We couldn&apos;t find what you were looking for, but plenty of pets are waiting to meet you.
       </Typography>
-      <Paper 
-        sx={{ 
-          padding: { xs: 2, sm: 3, md: 4 }, 
-          textAlign: 'center', 
-          borderRadius: 2, 
-          boxShadow: 3, 
-          backgroundColor: '#ffffff',
-          maxWidth: 600, 
-          width: '100%', 
-          margin: 'auto',
-          position: 'relative',
-          overflow: 'hidden',
-          mt: { xs: 2, sm: 3, md: 4 }
-        }}
-      >
-        <Typography 
-          variant="h6" 
-          component="p" 
-          color="text.secondary" 
-          sx={{ 
-            mb: { xs: 1, sm: 2, md: 3 }, 
-            fontSize: { xs: '1rem', sm: '1.25rem', md: '1.5rem' }
-          }}
-        >
-          Still need help? Contact our support team or visit our FAQ page.
-        </Typography>
-        <Grid container spacing={2} justifyContent="center">
-          <Grid item>
-            <Link href="/support" passHref>
-              <Button 
-                variant="contained" 
-                color="primary" 
-                size="large" 
-                sx={{ 
-                  borderRadius: '20px', 
-                  px: { xs: 2, sm: 3, md: 4 } 
-                }}
-              >
-                Contact Support
-              </Button>
-            </Link>
-          </Grid>
-          <Grid item>
-            <Link href="/" passHref>
-              <Button 
-                variant="outlined" 
-                color="primary" 
-                size="large" 
-                sx={{ 
-                  borderRadius: '20px', 
-                  px: { xs: 2, sm: 3, md: 4 } 
-                }}
-              >
-                Back to Home
-              </Button>
-            </Link>
-          </Grid>
-        </Grid>
-      </Paper>
+      <Box className="pf-fade-up pf-delay-3" sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
+        <Button component={Link} href="/pets">
+          Find a pet
+        </Button>
+        <Button component={Link} href="/" variant="outlined">
+          Back home
+        </Button>
+      </Box>
     </Container>
-  );
-};
+  </Box>
+);
 
 export default NotFoundPage;

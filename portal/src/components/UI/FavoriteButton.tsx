@@ -27,12 +27,12 @@ const FavoriteButton = ({ pet }: { pet: any }) => {
         position: "absolute",
         top: 12,
         right: 12,
-        bgcolor: "#fff",
+        bgcolor: "background.paper",
         color: "secondary.main",
-        "&:hover": { bgcolor: "#fff" },
+        "&:hover": { bgcolor: "background.paper", transform: "scale(1.1)" },
       }}
     >
-      {active ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+      {active ? <FavoriteIcon key="on" className="pf-pop" /> : <FavoriteBorderIcon key="off" />}
     </IconButton>
   );
 };

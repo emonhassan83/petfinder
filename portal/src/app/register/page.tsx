@@ -9,7 +9,7 @@ import { storeUserInfo } from "@/services/auth.services";
 import { IRegisterUser } from "@/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Box, Button, Grid, Stack, Typography } from "@mui/material";
-import Image from "next/image";
+import AuthAside from "@/components/Shared/AuthAside";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FieldValues } from "react-hook-form";
@@ -89,7 +89,7 @@ const RegisterPage = () => {
           minHeight: "100vh",
           justifyContent: "center",
           alignItems: "center",
-          bgcolor: "#f7f7f7",
+          bgcolor: "background.default",
         }}
       >
         <Box
@@ -98,7 +98,7 @@ const RegisterPage = () => {
             width: "100%",
             height: "100vh",
             overflow: "hidden",
-            bgcolor: "white",
+            bgcolor: "background.paper",
             mx: "auto",
           }}
         >
@@ -110,13 +110,7 @@ const RegisterPage = () => {
               position: "relative",
             }}
           >
-            <Image
-              src="https://i.ibb.co.com/vxYcdwB/petfinder-auth.png"
-              alt="Register Side Image"
-              layout="fill"
-              objectFit="cover"
-              style={{ borderRadius: "8px" }}
-            />
+            <AuthAside title="Your new best friend is" highlight="waiting" />
           </Box>
 
           {/* Form Section */}
@@ -228,7 +222,7 @@ const RegisterPage = () => {
                     </Box>
                   </Link>
                 </Typography>
-                <p className="text-sm mt-2 text-center text-gray-600">
+                <p className="text-sm mt-2 text-center text-slate">
                   © {new Date().getFullYear()} Petfinder. Crafted with ❤️ by
                   Petfinder Team
                 </p>
