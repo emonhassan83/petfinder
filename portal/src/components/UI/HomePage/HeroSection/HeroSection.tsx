@@ -7,6 +7,7 @@ import VerifiedIcon from "@mui/icons-material/Verified";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { ease } from "@/components/UI/Motion";
+import Typewriter from "@/components/UI/Typewriter";
 import HeroSearch from "./components/HeroSearch";
 import ArchImage from "../../ArchImage";
 import CircleText from "../../CircleText";
@@ -101,21 +102,24 @@ const HeroSection = () => {
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={audience}
-                initial={{ opacity: 0, y: 16 }}
+                initial={{ opacity: 0, y: 28 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ duration: 0.35, ease }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.55, ease }}
               >
                 <Typography
                   variant="h1"
                   className="pf-fade-up"
                   sx={{ fontSize: { xs: "2.5rem", sm: "3.2rem", md: "4.4rem" }, color: "text.primary" }}
                 >
-                  {c.before}{" "}
-                  <Box component="em" sx={{ color: "secondary.main", fontStyle: "italic" }}>
-                    {c.em}
-                  </Box>{" "}
-                  {c.after}
+                  {/* Headline types itself out behind a blinking caret (re-types on audience switch) */}
+                  <Typewriter
+                    parts={[
+                      { text: `${c.before} ` },
+                      { text: c.em, wrap: (t) => <Box component="em" sx={{ color: "secondary.main", fontStyle: "italic" }}>{t}</Box> },
+                      { text: ` ${c.after}` },
+                    ]}
+                  />
                 </Typography>
                 <Typography
                   className="pf-fade-up pf-delay-1"

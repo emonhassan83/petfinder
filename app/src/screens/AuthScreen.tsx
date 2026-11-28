@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { Text, TextInput } from "../components/Text";
+import { Typewriter } from "../components/Typewriter";
 import { Pill } from "../components/BottomSheet";
 import { colors, fonts, radius } from "../theme";
 import { useAppState } from "../state/AppState";
@@ -48,8 +49,8 @@ export const AuthScreen = () => {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={styles.wrap} keyboardShouldPersistTaps="handled">
           {/* Heading cross-fades when switching between sign in and register */}
-          <Animated.View key={mode} entering={FadeInDown.duration(350)} style={styles.group}>
-            <Text style={styles.title}>{register ? "Create your account" : "Welcome back"}</Text>
+          <Animated.View key={mode} entering={FadeInDown.duration(600)} style={styles.group}>
+            <Typewriter style={styles.title} text={register ? "Create your account" : "Welcome back"} delay={200} />
             <Text style={styles.sub}>{register ? "Save pets, apply to adopt and message shelters." : "Sign in to save pets, apply and chat."}</Text>
           </Animated.View>
 

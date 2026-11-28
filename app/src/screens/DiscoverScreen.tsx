@@ -12,6 +12,7 @@ import { useAsync } from "../hooks/useAsync";
 import { ErrorView, LoadingView } from "../components/Async";
 import { StoryCard } from "./StoriesScreen";
 import { PetCard } from "../components/PetCard";
+import { Typewriter } from "../components/Typewriter";
 import { useAppState } from "../state/AppState";
 
 const Chip = ({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) => (
@@ -98,14 +99,14 @@ export const DiscoverScreen = () => {
 
   return (
     <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: colors.white }}>
-      <Animated.View entering={FadeIn.duration(450)} style={{ flex: 1 }}>
+      <Animated.View entering={FadeIn.duration(700)} style={{ flex: 1 }}>
         <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* Header */}
-          <Animated.View entering={FadeInDown.duration(500)} layout={LinearTransition.springify().damping(20)} style={styles.header}>
+          <Animated.View entering={FadeInDown.duration(800)} layout={LinearTransition.springify().damping(20)} style={styles.header}>
             <View style={styles.titleRow}>
               <View>
                 <Text style={styles.hello}>{user ? `Hello, ${user.name.split(" ")[0]}` : "Hello there,"}</Text>
-                <Text style={styles.title}>Pets waiting for you</Text>
+                <Typewriter style={styles.title} text="Pets waiting for you" delay={500} />
               </View>
               <Pressable onPress={() => nav.navigate("Profile")} accessibilityRole="button" accessibilityLabel="Profile" style={styles.avatar}>
                 <Ionicons name="person" size={20} color={colors.primary} />
@@ -158,7 +159,7 @@ export const DiscoverScreen = () => {
           </Animated.View>
 
           {/* Soft grey sheet: slides with the header when the filter panel opens/closes */}
-          <Animated.View entering={FadeInDown.delay(120).duration(550)} layout={LinearTransition.springify().damping(20)} style={styles.sheet}>
+          <Animated.View entering={FadeInDown.delay(250).duration(850)} layout={LinearTransition.springify().damping(20)} style={styles.sheet}>
             <Text style={styles.section}>Needing your affection</Text>
             <FlatList
               horizontal
@@ -186,7 +187,7 @@ export const DiscoverScreen = () => {
               contentContainerStyle={{ paddingHorizontal: 20, gap: 14, paddingBottom: 8 }}
               ListEmptyComponent={<View style={{ width: width - 40 }}><RowState loading={storiesState.loading} error={storiesState.error} empty="Adoption stories will appear here." onRetry={storiesState.reload} /></View>}
               renderItem={({ item, index }) => (
-                <Animated.View entering={FadeInRight.delay(Math.min(index, 6) * 70).springify().damping(18)} style={{ width: 170 }}>
+                <Animated.View entering={FadeInRight.delay(Math.min(index, 6) * 110).springify().damping(16).mass(1.2)} style={{ width: 170 }}>
                   <StoryCard story={item} height={150} onPress={() => nav.navigate("Stories", { id: item.id })} />
                 </Animated.View>
               )}
@@ -201,7 +202,7 @@ export const DiscoverScreen = () => {
               contentContainerStyle={{ paddingHorizontal: 20, gap: 14, paddingBottom: 8 }}
               ListEmptyComponent={<View style={{ width: width - 40 }}><RowState loading={sheltersState.loading} error={sheltersState.error} empty="No verified shelters yet." onRetry={sheltersState.reload} /></View>}
               renderItem={({ item, index }) => (
-                <Animated.View entering={FadeInRight.delay(Math.min(index, 6) * 70).springify().damping(18)} style={[styles.shelter, shadow]}>
+                <Animated.View entering={FadeInRight.delay(Math.min(index, 6) * 110).springify().damping(16).mass(1.2)} style={[styles.shelter, shadow]}>
                   <View style={[styles.shelterLogo, { backgroundColor: colors.primaryLight }]}>
                     <Ionicons name="home" size={22} color={colors.primaryDark} />
                   </View>

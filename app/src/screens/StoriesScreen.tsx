@@ -52,7 +52,7 @@ export const StoriesScreen = ({ route }: any) => {
           <View key={ci} style={styles.col}>
             {col.map(({ story, h }, ri) => (
               //* Row-major stagger across the two columns so the masonry fills in top-down
-              <Animated.View key={story.id} entering={FadeInDown.delay(Math.min(ri * 2 + ci, 10) * 70).springify().damping(18)}>
+              <Animated.View key={story.id} entering={FadeInDown.delay(Math.min(ri * 2 + ci, 10) * 110).springify().damping(16).mass(1.2)}>
                 <StoryCard story={story} height={h} onPress={() => setOpen(story)} />
               </Animated.View>
             ))}

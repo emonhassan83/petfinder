@@ -201,9 +201,9 @@ const PetsContent = () => {
                   {sorted.map((pet: any, i: number) => (
                     <Grid item xs={12} sm={6} lg={4} key={pet.id}>
                       <motion.div
-                        initial={{ opacity: 0, y: 24, scale: 0.97 }}
+                        initial={{ opacity: 0, y: 44, scale: 0.94 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
-                        transition={{ duration: 0.5, ease, delay: Math.min(i, 8) * 0.06 }}
+                        transition={{ duration: 0.85, ease, delay: Math.min(i, 9) * 0.1 }}
                         style={{ height: "100%" }}
                       >
                         <PetCard pet={pet} onQuickView={setQuick} />

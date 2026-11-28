@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import Animated, { FadeInDown, LinearTransition } from "react-native-reanimated";
 import { Text, TextInput } from "../components/Text";
+import { Typewriter } from "../components/Typewriter";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors, fonts, radius } from "../theme";
@@ -17,7 +18,7 @@ const sizes: { key: Size; range: string }[] = [
 
 //* Each onboarding block rises in a beat after the previous one
 const Step = ({ i, children }: { i: number; children: React.ReactNode }) => (
-  <Animated.View entering={FadeInDown.delay(i * 90).springify().damping(18)}>{children}</Animated.View>
+  <Animated.View entering={FadeInDown.delay(i * 160).springify().damping(16).mass(1.3)}>{children}</Animated.View>
 );
 
 const toggle = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
@@ -51,7 +52,7 @@ export const OnboardingScreen = () => {
       <ScrollView contentContainerStyle={styles.wrap} keyboardShouldPersistTaps="handled">
         <Step i={0}>
           <Text style={styles.hello}>Welcome,</Text>
-          <Text style={styles.title}>We'll help you find the perfect pet for you :)</Text>
+          <Typewriter style={styles.title} text="We'll help you find the perfect pet for you :)" speed={38} delay={450} />
         </Step>
 
         <Step i={1}>

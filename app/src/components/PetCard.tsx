@@ -39,7 +39,7 @@ export const PetCard = ({ pet, onPress, width, index = 0 }: { pet: Pet; onPress:
   return (
     //* Entry/exit live on the outer view; the press scale lives on the inner one so they never fight
     <Animated.View
-      entering={FadeInDown.delay(Math.min(index, 8) * 70).springify().damping(18)}
+      entering={FadeInDown.delay(Math.min(index, 8) * 110).springify().damping(16).mass(1.2)}
       exiting={FadeOut.duration(200)}
       style={[{ width }, styles.wrap]}
     >
