@@ -85,7 +85,7 @@ const ManageMyBlogs = () => {
             <IconButton
               onClick={() => handleEditClick(row)}
               color="primary"
-              aria-label="delete"
+              aria-label="edit"
             >
               <EditIcon />
             </IconButton>

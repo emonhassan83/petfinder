@@ -19,7 +19,8 @@ const AddBlogPage = () => {
 
   const handleFormSubmit = async (values: FieldValues) => {
     try {
-      const tagsArray = values.tags.split(",").map((tag: string) => tag.trim());
+      //* Empty tags field is undefined; send [] and let the server validate the rest
+      const tagsArray = String(values.tags ?? "").split(",").map((tag: string) => tag.trim()).filter(Boolean);
 
       const blogData = {
         userId: data.id,
@@ -29,7 +30,13 @@ const AddBlogPage = () => {
 
       const res = await createBlog(blogData);
       // console.log(res);
-      if (res.data.id) {
+      //* RTK Query mutations resolve to { data } or { error }; surface the server message instead of crashing on res.data
+      if ("error" in res && res.error) {
+        const err: any = res.error;
+        toast.error(err?.data?.message || err?.message || "Could not create the blog");
+        return;
+      }
+      if (res.data?.id) {
         toast.success("Blog created successfully!");
         router.push("/dashboard/admin/manage-blogs");
       }
