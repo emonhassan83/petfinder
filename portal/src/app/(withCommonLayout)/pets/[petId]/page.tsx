@@ -12,6 +12,10 @@ import AdoptionButtonWrapper from "./components/AddAdoptButtonWrapper";
 import PetGallery from "./components/PetGallery";
 import PetActions from "./components/PetActions";
 import PetCard from "../components/petCard/PetCard";
+import PetFees from "./components/PetFees";
+import CostCalculator from "./components/CostCalculator";
+import BookVisit from "./components/BookVisit";
+import { getFeeBreakdown } from "@/lib/petCosts";
 import { findPreviewPet, findPreviewShelter, previewPets, previewShelters } from "@/mock/pets";
 
 type Pet = {
@@ -100,15 +104,16 @@ const PetDetailsPage = async ({ params }: { params: Promise<{ petId: string }> }
   const pronoun = pet.gender === "Female" ? "her" : "him";
   const related = previewPets.filter((p) => p.id !== pet.id && (p.species === pet.species || p.shelterId === pet.shelter.id)).slice(0, 3);
   const shelterInfo = pet.shelter.id ? previewShelters.find((s) => s.id === pet.shelter.id) : undefined;
+  const fees = getFeeBreakdown(pet);
+  const sectionTitle = { fontSize: { xs: 24, md: 32 }, "& em": { color: "secondary.main" } };
 
   return (
     <Box sx={{ pb: 6 }}>
-      <Box sx={{ bgcolor: "var(--pf-peach)", height: { xs: 80, md: 120 } }} />
-      <Container sx={{ mt: { xs: -8, md: -11 } }}>
-        <Breadcrumbs sx={{ mb: 2, fontSize: 14 }}>
+      <Container sx={{ pt: { xs: 3, md: 4 } }}>
+        <Breadcrumbs sx={{ mb: 2.5, fontSize: 13, textTransform: "uppercase", letterSpacing: ".1em", fontWeight: 700, "& a": { color: "text.secondary" } }}>
           <Link href="/">Home</Link>
           <Link href="/pets">Find a pet</Link>
-          <Typography sx={{ fontSize: 14, fontWeight: 700, color: "text.primary" }}>{pet.name}</Typography>
+          <Typography sx={{ fontSize: 13, fontWeight: 700, color: "secondary.main", letterSpacing: "inherit" }}>{pet.name}</Typography>
         </Breadcrumbs>
 
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1.7fr 1fr" }, gap: { xs: 3, md: 5 }, alignItems: "start" }}>
@@ -117,7 +122,7 @@ const PetDetailsPage = async ({ params }: { params: Promise<{ petId: string }> }
             <PetGallery photos={pet.photos} name={pet.name} />
 
             <Box sx={{ mt: 4 }}>
-              <Typography variant="h1" sx={{ fontSize: { xs: "2.2rem", md: "3rem" }, letterSpacing: "-0.02em" }}>
+              <Typography variant="h1" sx={{ fontSize: { xs: "2.6rem", md: "3.8rem" } }}>
                 {pet.name}
               </Typography>
               <Typography sx={{ mt: 1, color: "text.secondary", display: "flex", alignItems: "center", gap: 0.5, flexWrap: "wrap" }}>
@@ -135,7 +140,7 @@ const PetDetailsPage = async ({ params }: { params: Promise<{ petId: string }> }
 
             <Divider sx={{ my: 4 }} />
 
-            <Typography variant="h4" sx={{ fontSize: { xs: 22, md: 28 } }}>
+            <Typography variant="h4" sx={sectionTitle}>
               About
             </Typography>
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, 1fr)" }, gap: 1.5, mt: 2 }}>
@@ -181,8 +186,8 @@ const PetDetailsPage = async ({ params }: { params: Promise<{ petId: string }> }
 
             <Divider sx={{ my: 4 }} />
 
-            <Typography variant="h4" sx={{ fontSize: { xs: 22, md: 28 } }}>
-              Meet {pet.name}
+            <Typography variant="h4" sx={sectionTitle}>
+              Meet <em>{pet.name}</em>
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 1.5, fontSize: 17, lineHeight: 1.75 }}>
               {pet.description}
@@ -199,18 +204,41 @@ const PetDetailsPage = async ({ params }: { params: Promise<{ petId: string }> }
                 <Typography color="text.secondary">{pet.adoptionRequirements}</Typography>
               </>
             )}
+
+            {fees.length > 0 && (
+              <>
+                <Divider sx={{ my: 4 }} />
+                <Typography variant="h4" sx={sectionTitle}>
+                  What the fee covers
+                </Typography>
+                <Typography color="text.secondary" sx={{ mt: 1, mb: 2.5 }}>
+                  No hidden costs. This is exactly what {pet.shelter.name} charges and why.
+                </Typography>
+                <PetFees lines={fees} total={pet.fee ?? 0} />
+              </>
+            )}
+
+            <Divider sx={{ my: 4 }} />
+            <Typography variant="h4" sx={sectionTitle}>
+              Plan your first year
+            </Typography>
+            <Typography color="text.secondary" sx={{ mt: 1, mb: 2.5 }}>
+              Adjust the options to see what life with {pet.name} might cost.
+            </Typography>
+            <CostCalculator species={pet.species} size={pet.size} fee={pet.fee} name={pet.name} />
           </Box>
 
           {/* Sticky sidebar */}
           <Box sx={{ position: { md: "sticky" }, top: { md: 96 }, display: "grid", gap: 3 }}>
-            <Box sx={{ bgcolor: "background.paper", borderRadius: 4, p: 3, border: "1px solid", borderColor: "divider", boxShadow: "var(--pf-shadow)" }}>
-              <Typography variant="h5" sx={{ fontSize: 22 }}>
+            <Box id="apply" sx={{ scrollMarginTop: 96, bgcolor: "background.paper", borderRadius: "var(--pf-radius-card)", p: 3, border: "1px solid", borderColor: "divider", boxShadow: "var(--pf-shadow)" }}>
+              <Typography variant="h5" sx={{ fontSize: 24 }}>
                 Considering {pet.name} for adoption?
               </Typography>
               <Typography color="text.secondary" sx={{ mt: 1 }}>
                 Send an application and the {pet.shelter.verified ? "shelter" : "owner"} will get back to you, usually within 48 hours.
               </Typography>
               <AdoptionButtonWrapper petId={pet.id} />
+              <BookVisit pet={{ id: pet.id, name: pet.name, image: pet.image }} shelterName={pet.shelter.name} />
               <LinkBox
                 
                 href="/dashboard/user/messages"
@@ -221,7 +249,7 @@ const PetDetailsPage = async ({ params }: { params: Promise<{ petId: string }> }
               <PetActions pet={pet} />
             </Box>
 
-            <Box sx={{ bgcolor: "background.paper", borderRadius: 4, overflow: "hidden", border: "1px solid", borderColor: "divider" }}>
+            <Box sx={{ bgcolor: "background.paper", borderRadius: "var(--pf-radius-card)", overflow: "hidden", border: "1px solid", borderColor: "divider" }}>
               {shelterInfo && (
                 <Box sx={{ position: "relative", height: 110 }}>
                   <Image src={shelterInfo.image} alt="" fill sizes="400px" style={{ objectFit: "cover" }} />
@@ -257,7 +285,7 @@ const PetDetailsPage = async ({ params }: { params: Promise<{ petId: string }> }
 
         {related.length > 0 && (
           <Box sx={{ mt: 8 }}>
-            <Typography variant="h4" sx={{ fontSize: { xs: 22, md: 28 }, mb: 3 }}>
+            <Typography variant="h4" sx={{ ...sectionTitle, mb: 3 }}>
               Other pets you may like
             </Typography>
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)" }, gap: 3 }}>

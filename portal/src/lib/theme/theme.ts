@@ -11,24 +11,28 @@ export const brand = {
   rust: "#9A3A12",
   peach: "#FDEEE4",
   sunshine: "#FFC857",
-  ink: "#1E2326",
-  slate: "#5E6B73",
-  cream: "#FFFFFF",
-  line: "#ECE6E1",
+  ink: "#1E1B18", // warm near-black: text and dark sections
+  slate: "#6A625B", // warm grey: secondary text
+  cream: "#FAF6F0", // page background
+  sand: "#EADFD2", // dividers, soft card fills
+  line: "#EADFD2",
 };
 
-//* Dark-mode counterparts
+//* Dark-mode counterparts (ink background, sand text)
 const night = {
   primary: "#3BB8C2",
   primaryDark: "#2A98A1",
   primaryLight: "#173336",
   accent: "#F0925C",
-  bg: "#111719",
-  paper: "#1A2326",
-  ink: "#ECEFF0",
-  slate: "#9DAAB0",
-  line: "#2A3539",
+  bg: "#171412",
+  paper: "#211D1A",
+  ink: "#F1E9DE",
+  slate: "#ADA297",
+  line: "#3A332D",
 };
+
+//* Corner radii (cards large, buttons pill)
+export const radius = { card: 24, input: 14, chip: 999, button: 999 };
 
 const ease = "cubic-bezier(0.22, 1, 0.36, 1)";
 
@@ -61,16 +65,18 @@ export const theme = extendTheme({
       },
     },
   },
-  shape: { borderRadius: 12 },
+  shape: { borderRadius: 14 },
   typography: {
-    fontFamily: "var(--font-inter), system-ui, sans-serif",
-    h1: { fontFamily: "var(--font-heading), sans-serif", fontWeight: 800 },
-    h2: { fontFamily: "var(--font-heading), sans-serif", fontWeight: 800 },
-    h3: { fontFamily: "var(--font-heading), sans-serif", fontWeight: 700 },
-    h4: { fontFamily: "var(--font-heading), sans-serif", fontWeight: 700 },
-    h5: { fontFamily: "var(--font-heading), sans-serif", fontWeight: 700 },
-    h6: { fontFamily: "var(--font-heading), sans-serif", fontWeight: 700 },
-    button: { textTransform: "none", fontWeight: 600 },
+    fontFamily: "var(--font-body), system-ui, sans-serif",
+    //* Fraunces reads heavy above 600; tighter tracking on display sizes
+    h1: { fontFamily: "var(--font-heading), Georgia, serif", fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.08 },
+    h2: { fontFamily: "var(--font-heading), Georgia, serif", fontWeight: 600, letterSpacing: "-0.015em", lineHeight: 1.12 },
+    h3: { fontFamily: "var(--font-heading), Georgia, serif", fontWeight: 600, letterSpacing: "-0.01em" },
+    h4: { fontFamily: "var(--font-heading), Georgia, serif", fontWeight: 600 },
+    h5: { fontFamily: "var(--font-heading), Georgia, serif", fontWeight: 600 },
+    h6: { fontFamily: "var(--font-heading), Georgia, serif", fontWeight: 600 },
+    button: { textTransform: "none", fontWeight: 700 },
+    overline: { fontWeight: 700, letterSpacing: "0.14em" },
   },
   components: {
     MuiCssBaseline: {
@@ -86,8 +92,7 @@ export const theme = extendTheme({
       styleOverrides: {
         root: {
           padding: "8px 24px", //* button padding set
-          borderRadius: 999,
-          fontFamily: "var(--font-heading), sans-serif",
+          borderRadius: radius.button,
           fontWeight: 700,
           transition: `transform .2s ${ease}, box-shadow .2s ${ease}, background-color .2s ease`,
           "&:hover": { transform: "translateY(-1px)" },
@@ -112,7 +117,7 @@ export const theme = extendTheme({
     MuiCard: {
       styleOverrides: {
         root: ({ theme }) => ({
-          borderRadius: 16,
+          borderRadius: radius.card,
           border: `1px solid ${theme.vars.palette.divider}`,
           boxShadow: "none",
           transition: `transform .25s ${ease}, box-shadow .25s ${ease}, border-color .25s ease`,
@@ -124,7 +129,7 @@ export const theme = extendTheme({
     },
     MuiOutlinedInput: {
       styleOverrides: {
-        root: ({ theme }) => ({ borderRadius: 10, backgroundColor: theme.vars.palette.background.paper }),
+        root: ({ theme }) => ({ borderRadius: radius.input, backgroundColor: theme.vars.palette.background.paper }),
       },
     },
     MuiChip: { styleOverrides: { root: { fontWeight: 600 } } },

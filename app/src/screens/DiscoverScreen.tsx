@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { Animated, FlatList, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Text, TextInput } from "../components/Text";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { colors, radius, shadow } from "../theme";
-import { pets, shelters } from "../data/mock";
+import { colors, fonts, radius, shadow } from "../theme";
+import { pets, shelters, stories } from "../data/mock";
+import { StoryCard } from "./StoriesScreen";
 import { PetCard } from "../components/PetCard";
 import { useAppState } from "../state/AppState";
 
@@ -124,6 +126,25 @@ export const DiscoverScreen = () => {
               renderItem={({ item }) => <PetCard pet={item} width={width * 0.66} onPress={() => open(item.id)} />}
             />
 
+            <View style={styles.sectionRow}>
+              <Text style={[styles.section, { marginBottom: 0 }]}>Happy tails</Text>
+              <Pressable onPress={() => nav.navigate("Stories")} accessibilityRole="button" accessibilityLabel="See all success stories" style={styles.seeAll}>
+                <Text style={styles.link}>See all</Text>
+              </Pressable>
+            </View>
+            <FlatList
+              horizontal
+              data={stories}
+              keyExtractor={(s) => s.id}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 20, gap: 14, paddingBottom: 8 }}
+              renderItem={({ item }) => (
+                <View style={{ width: 170 }}>
+                  <StoryCard story={item} height={150} onPress={() => nav.navigate("Stories", { id: item.id })} />
+                </View>
+              )}
+            />
+
             <Text style={styles.section}>Featured shelters</Text>
             <FlatList
               horizontal
@@ -165,7 +186,7 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 24, backgroundColor: colors.white },
   titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   hello: { color: colors.slate, fontSize: 15 },
-  title: { color: colors.ink, fontSize: 24, fontWeight: "800", marginTop: 4 },
+  title: { color: colors.ink, fontSize: 24, fontFamily: fonts.heading, marginTop: 4 },
   avatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: colors.primaryLight, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: colors.white, ...shadow },
   searchRow: { flexDirection: "row", gap: 12, marginTop: 22 },
   search: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1.2, borderColor: "#DADCE3", borderRadius: radius.sm, paddingHorizontal: 14 },
@@ -179,8 +200,10 @@ const styles = StyleSheet.create({
   chipText: { color: colors.primary, fontWeight: "600" },
   link: { color: colors.primary, fontWeight: "700", marginLeft: 4 },
   sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 8, paddingBottom: 32, minHeight: 600 },
-  section: { color: colors.ink, fontSize: 17, fontWeight: "600", marginTop: 22, marginBottom: 14, paddingHorizontal: 20 },
+  section: { color: colors.ink, fontSize: 19, fontFamily: fonts.heading, marginTop: 22, marginBottom: 14, paddingHorizontal: 20 },
   empty: { color: colors.slate, paddingVertical: 40 },
+  sectionRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 22, marginBottom: 14, paddingRight: 20 },
+  seeAll: { minHeight: 44, justifyContent: "center" },
   shelter: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: colors.white, borderRadius: radius.md, padding: 14, paddingRight: 22 },
   shelterLogo: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
   shelterName: { color: colors.ink, fontWeight: "700", fontSize: 15 },

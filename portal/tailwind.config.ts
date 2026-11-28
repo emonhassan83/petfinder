@@ -24,6 +24,16 @@ const config: Config = {
         cream: 'var(--pf-cream)',
         paper: 'var(--pf-paper)',
         line: 'var(--pf-line)',
+        sand: 'var(--pf-sand)',
+        soft: 'var(--pf-soft)',
+      },
+      fontFamily: {
+        heading: ['var(--font-heading)', 'Georgia', 'serif'],
+        body: ['var(--font-body)', 'system-ui', 'sans-serif'],
+      },
+      borderRadius: {
+        card: 'var(--pf-radius-card)',
+        input: 'var(--pf-radius-input)',
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',

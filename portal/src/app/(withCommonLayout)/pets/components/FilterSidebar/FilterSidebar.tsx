@@ -3,7 +3,24 @@ import TuneIcon from "@mui/icons-material/Tune";
 
 const breedOptions = ["Labrador", "Golden Retriever", "Beagle", "Corgi", "Pug", "Jack Russell", "Siberian Husky", "Tabby", "Siamese", "Maine Coon", "Domestic Shorthair", "Holland Lop"];
 const sizeOptions = ["Small", "Medium", "Large"];
-const colorOptions = ["White", "Cream", "Black", "Gray", "Golden", "Brown Tabby", "Brown and White"];
+//* Coat colour swatches (Pawvelle-style colour picker). `swatch` is a CSS background; matching is by keyword (see matchesColor).
+export const colorOptions: { name: string; swatch: string }[] = [
+  { name: "White", swatch: "#F7F4EF" },
+  { name: "Cream", swatch: "#EAD9B8" },
+  { name: "Golden", swatch: "#D9A44A" },
+  { name: "Red", swatch: "#B8642E" },
+  { name: "Brown", swatch: "#7A5133" },
+  { name: "Grey", swatch: "#9A9EA3" },
+  { name: "Black", swatch: "#1E1B18" },
+  { name: "Tricolour", swatch: "conic-gradient(#1E1B18 0 33%, #B8642E 0 66%, #F7F4EF 0)" },
+];
+
+//* "Black & white" matches Black and White; "Gray" is treated as Grey; "Tabby" as Brown
+export const matchesColor = (petColor: string | undefined, filter: string) => {
+  if (!filter) return true;
+  const c = (petColor || "").toLowerCase().replace("gray", "grey").replace("tabby", "brown tabby");
+  return c.includes(filter.toLowerCase());
+};
 const genderOptions = ["Male", "Female"];
 
 export const emptyFilters = { species: "", breed: "", age: "", size: "", color: "", gender: "" };
@@ -48,7 +65,7 @@ const FilterSidebar = ({ filters, setFilters }: { filters: any; setFilters: Reac
         p: 3,
         mb: { xs: 3, md: 0 },
         bgcolor: "background.paper",
-        borderRadius: 4,
+        borderRadius: "var(--pf-radius-card)",
         border: "1px solid",
         borderColor: "divider",
       }}
@@ -85,14 +102,41 @@ const FilterSidebar = ({ filters, setFilters }: { filters: any; setFilters: Reac
       <ChipGroup label="Size" name="size" options={sizeOptions} value={filters.size} onPick={set} />
       <ChipGroup label="Gender" name="gender" options={genderOptions} value={filters.gender} onPick={set} />
 
-      <TextField select fullWidth size="small" label="Colour" value={filters.color} onChange={(e) => set("color", e.target.value)} sx={{ mt: 2.5 }}>
-        <MenuItem value="">Any colour</MenuItem>
-        {colorOptions.map((c) => (
-          <MenuItem key={c} value={c}>
-            {c}
-          </MenuItem>
-        ))}
-      </TextField>
+      <Box sx={{ mt: 2.5 }}>
+        <Typography sx={{ fontWeight: 700, fontSize: 14, mb: 1 }}>
+          Coat colour{filters.color && <Box component="span" sx={{ fontWeight: 500, color: "text.secondary" }}> · {filters.color}</Box>}
+        </Typography>
+        <Box role="group" aria-label="Coat colour" sx={{ display: "flex", flexWrap: "wrap", gap: 1.25 }}>
+          {colorOptions.map((c) => {
+            const on = filters.color === c.name;
+            return (
+              <Box
+                key={c.name}
+                component="button"
+                type="button"
+                title={c.name}
+                aria-label={c.name}
+                aria-pressed={on}
+                onClick={() => set("color", on ? "" : c.name)}
+                sx={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: "50%",
+                  cursor: "pointer",
+                  background: c.swatch,
+                  border: 0,
+                  //* Inset outline keeps light and dark swatches visible in both themes; outer ring marks the selection
+                  boxShadow: (t) =>
+                    `inset 0 0 0 1px rgba(127,127,127,.45)${on ? `, 0 0 0 3px ${t.vars.palette.background.paper}, 0 0 0 5px ${t.vars.palette.primary.main}` : ""}`,
+                  transition: "transform .2s ease, box-shadow .2s ease",
+                  "&:hover": { transform: "scale(1.1)" },
+                  "&:focus-visible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 4 },
+                }}
+              />
+            );
+          })}
+        </Box>
+      </Box>
     </Box>
   );
 };

@@ -4,7 +4,8 @@ import { useState, useEffect, useMemo, Suspense } from "react";
 import { Alert, Box, Chip, Container, Grid, MenuItem, Pagination, Skeleton, TextField, Typography } from "@mui/material";
 import axios from "axios";
 import { useSearchParams } from "next/navigation";
-import FilterSidebar, { emptyFilters } from "./components/FilterSidebar/FilterSidebar";
+import FilterSidebar, { emptyFilters, matchesColor } from "./components/FilterSidebar/FilterSidebar";
+import QuickViewDrawer from "@/components/UI/QuickViewDrawer";
 import PetCard from "./components/petCard/PetCard";
 import LoadingPage from "@/components/Shared/Loader/LoadingPage";
 import Meta from "@/components/Meta/MetaData";
@@ -29,6 +30,7 @@ const filterPreview = (filters: any, term: string) =>
       (!filters.size || p.size === filters.size) &&
       (!filters.gender || p.gender === filters.gender) &&
       (!filters.age || p.age === Number(filters.age)) &&
+      matchesColor(p.color, filters.color) &&
       (!term || `${p.name} ${p.breed} ${p.location}`.toLowerCase().includes(term.toLowerCase()))
   );
 
@@ -42,6 +44,7 @@ const PetsContent = () => {
   const [preview, setPreview] = useState(false);
   const [filters, setFilters] = useState({ ...emptyFilters, species: params.get("species") || "", breed: params.get("breed") || "" });
   const [loading, setLoading] = useState(true);
+  const [quick, setQuick] = useState<any>(null);
 
   //* A new hero search updates the URL; mirror its species/breed into the filters
   useEffect(() => {
@@ -86,6 +89,7 @@ const PetsContent = () => {
       <PageHeader
         title="Find your"
         highlight="new best friend"
+        image={previewPets[2].image}
         crumbs={[{ label: "Find a pet" }]}
         subtitle={searchTerm ? `Showing results for "${searchTerm}"` : "Search by area, type and breed, then narrow it down with filters."}
       >
@@ -136,14 +140,14 @@ const PetsContent = () => {
               <Grid container spacing={3}>
                 {Array.from({ length: 6 }).map((_, i) => (
                   <Grid item xs={12} sm={6} lg={4} key={i}>
-                    <Skeleton variant="rounded" height={240} sx={{ borderRadius: 4 }} />
+                    <Skeleton variant="rounded" height={240} sx={{ borderRadius: "var(--pf-radius-card)" }} />
                     <Skeleton width="60%" sx={{ mt: 1 }} />
                     <Skeleton width="40%" />
                   </Grid>
                 ))}
               </Grid>
             ) : sorted.length === 0 ? (
-              <Box sx={{ textAlign: "center", py: 10, bgcolor: "var(--pf-soft)", borderRadius: 4 }}>
+              <Box sx={{ textAlign: "center", py: 10, bgcolor: "var(--pf-soft)", borderRadius: "var(--pf-radius-card)" }}>
                 <Typography variant="h5">No pets found</Typography>
                 <Typography color="text.secondary" sx={{ mt: 1 }}>
                   Try another area or clear a filter.
@@ -154,7 +158,7 @@ const PetsContent = () => {
                 <Grid container spacing={3}>
                   {sorted.map((pet: any, i: number) => (
                     <Grid item xs={12} sm={6} lg={4} key={pet.id} className="pf-fade-up" style={{ animationDelay: `${i * 0.05}s` }}>
-                      <PetCard pet={pet} />
+                      <PetCard pet={pet} onQuickView={setQuick} />
                     </Grid>
                   ))}
                 </Grid>
@@ -168,6 +172,8 @@ const PetsContent = () => {
           </Box>
         </Box>
       </Container>
+
+      <QuickViewDrawer pet={quick} onClose={() => setQuick(null)} />
     </>
   );
 };

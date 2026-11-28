@@ -1,12 +1,16 @@
 import React, { useRef, useState } from "react";
-import { Alert, Animated, Pressable, Share, StyleSheet, Text, View } from "react-native";
+import { Alert, Animated, Pressable, Share, StyleSheet, View } from "react-native";
+import { Text } from "../components/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { colors, needs, radius, shadow } from "../theme";
+import { colors, fonts, needs, radius, shadow } from "../theme";
 import { pets, shelters } from "../data/mock";
 import { useAppState } from "../state/AppState";
 import { ageLabel, GenderIcon } from "../components/PetCard";
+import { VisitSheet } from "../components/VisitSheet";
+import { CostSheet } from "../components/CostSheet";
+import { formatBDT } from "../utils/cost";
 
 const HERO = 340;
 
@@ -15,6 +19,9 @@ export const PetDetailScreen = ({ route, navigation }: any) => {
   const { favorites, toggleFavorite, apply, startConversation } = useAppState();
   const insets = useSafeAreaInsets();
   const [expanded, setExpanded] = useState(false);
+  const [photo, setPhoto] = useState(0);
+  const [visitOpen, setVisitOpen] = useState(false);
+  const [costOpen, setCostOpen] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
 
   if (!pet) return <Text style={{ padding: 24 }}>This pet is no longer available.</Text>;
@@ -53,15 +60,31 @@ export const PetDetailScreen = ({ route, navigation }: any) => {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={[styles.hero, { backgroundColor: pet.tint }, heroStyle]}>
-          <Image source={{ uri: pet.image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} accessibilityLabel={pet.name} />
+          <Image source={{ uri: pet.photos[photo] ?? pet.image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} accessibilityLabel={pet.name} />
           <View style={styles.dots}>
-            {[0, 1, 2, 3].map((i) => (
-              <View key={i} style={[styles.dot, i === 0 && styles.dotOn]} />
+            {pet.photos.map((_, i) => (
+              <View key={i} style={[styles.dot, i === photo && styles.dotOn]} />
             ))}
           </View>
         </Animated.View>
 
         <View style={styles.sheet}>
+          <View style={styles.swatches}>
+            {pet.photos.map((uri, i) => (
+              <Pressable
+                key={uri}
+                onPress={() => setPhoto(i)}
+                accessibilityRole="button"
+                accessibilityLabel={`Show photo ${i + 1} of ${pet.photos.length}`}
+                accessibilityState={{ selected: i === photo }}
+                hitSlop={{ top: 0, bottom: 0, left: 2, right: 2 }}
+                style={[styles.swatch, i === photo && styles.swatchOn]}
+              >
+                <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+              </Pressable>
+            ))}
+          </View>
+
           <View style={styles.titleRow}>
             <View style={{ flex: 1 }}>
               <View style={styles.nameRow}>
@@ -88,6 +111,14 @@ export const PetDetailScreen = ({ route, navigation }: any) => {
             >
               <Ionicons name={fav ? "heart" : "heart-outline"} size={20} color={colors.primary} />
             </Pressable>
+          </View>
+
+          <View style={styles.colors}>
+            {pet.color.map((c) => (
+              <View key={c} style={styles.colorChip} accessibilityLabel={`Coat colour ${c}`}>
+                <Text style={styles.colorText}>{c}</Text>
+              </View>
+            ))}
           </View>
 
           <Text style={styles.about} numberOfLines={expanded ? undefined : 3}>
@@ -128,6 +159,24 @@ export const PetDetailScreen = ({ route, navigation }: any) => {
           <Text style={styles.label}>Adoption requirements</Text>
           <Text style={styles.about}>{pet.requirements}</Text>
 
+          <Text style={styles.label}>Adoption fees</Text>
+          <View style={styles.fees}>
+            {pet.fees.map((f) => (
+              <View key={f.label} style={styles.feeRow}>
+                <Text style={styles.feeText}>{f.label}</Text>
+                <Text style={styles.feeText}>{f.amount ? formatBDT(f.amount) : "Included"}</Text>
+              </View>
+            ))}
+            <View style={[styles.feeRow, styles.feeTotal]}>
+              <Text style={styles.feeTotalText}>Total</Text>
+              <Text style={styles.feeTotalText}>{formatBDT(pet.fees.reduce((sum, f) => sum + f.amount, 0))}</Text>
+            </View>
+          </View>
+          <Pressable onPress={() => setCostOpen(true)} accessibilityRole="button" accessibilityLabel="Estimate first-year cost" style={styles.costLink}>
+            <Ionicons name="calculator-outline" size={18} color={colors.primary} />
+            <Text style={styles.costLinkText}>First-year cost</Text>
+          </Pressable>
+
           <Pressable
             onPress={() => Alert.alert("Report listing", "Reporting connects to moderation once the backend is live.")}
             accessibilityRole="button"
@@ -148,10 +197,16 @@ export const PetDetailScreen = ({ route, navigation }: any) => {
       </Pressable>
 
       <View style={[styles.bar, { paddingBottom: insets.bottom + 12 }]}>
-        <Pressable onPress={onApply} accessibilityRole="button" style={({ pressed }) => [styles.cta, pressed && { transform: [{ scale: 0.98 }] }]}>
+        <Pressable onPress={() => setVisitOpen(true)} accessibilityRole="button" accessibilityLabel="Book a visit" style={styles.visitBtn}>
+          <Text style={styles.visitText}>Book a visit</Text>
+        </Pressable>
+        <Pressable onPress={onApply} accessibilityRole="button" accessibilityLabel={`Adopt ${pet.name}`} style={({ pressed }) => [styles.cta, pressed && { transform: [{ scale: 0.98 }] }]}>
           <Text style={styles.ctaText}>Adopt {pet.name}</Text>
         </Pressable>
       </View>
+
+      <VisitSheet pet={pet} visible={visitOpen} onClose={() => setVisitOpen(false)} onViewVisits={() => navigation.navigate("Tabs", { screen: "Applications", params: { tab: "visits" } })} />
+      <CostSheet pet={pet} visible={costOpen} onClose={() => setCostOpen(false)} />
     </View>
   );
 };
@@ -164,7 +219,7 @@ const styles = StyleSheet.create({
   sheet: { backgroundColor: colors.white, borderTopLeftRadius: 28, borderTopRightRadius: 28, marginTop: -28, padding: 24, gap: 6 },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  name: { fontSize: 30, fontWeight: "800", color: colors.ink },
+  name: { fontSize: 30, fontFamily: fonts.heading, color: colors.ink },
   meta: { color: colors.slate, fontSize: 14, marginTop: 2 },
   iconBtn: { width: 44, height: 44, borderRadius: 12, borderWidth: 1.2, borderColor: "#F3D5CE", alignItems: "center", justifyContent: "center" },
   about: { color: "#5F6170", fontSize: 14, lineHeight: 22, marginTop: 14 },
@@ -176,13 +231,28 @@ const styles = StyleSheet.create({
   shelterMeta: { color: colors.slate, fontSize: 12, marginTop: 3 },
   outlineBtn: { borderWidth: 1.2, borderColor: colors.line, borderRadius: radius.sm, paddingHorizontal: 16, paddingVertical: 10 },
   outlineText: { color: colors.primary, fontWeight: "700" },
-  section: { color: colors.ink, fontSize: 16, fontWeight: "600", marginTop: 26, marginBottom: 8 },
+  section: { color: colors.ink, fontSize: 18, fontFamily: fonts.heading, marginTop: 26, marginBottom: 8 },
   needs: { flexDirection: "row", gap: 10 },
   need: { flex: 1, aspectRatio: 1, borderRadius: radius.md, alignItems: "center", justifyContent: "center", gap: 6 },
   needText: { fontSize: 13, fontWeight: "600" },
   report: { color: colors.slate, marginTop: 28, textAlign: "center", textDecorationLine: "underline" },
   back: { position: "absolute", left: 16, width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(0,0,0,.25)", alignItems: "center", justifyContent: "center" },
-  bar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 24, paddingTop: 12, backgroundColor: colors.white, ...shadow },
-  cta: { backgroundColor: colors.primary, borderRadius: radius.sm, paddingVertical: 17, alignItems: "center" },
+  bar: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", gap: 12, paddingHorizontal: 24, paddingTop: 12, backgroundColor: colors.white, ...shadow },
+  cta: { flex: 1, backgroundColor: colors.primary, borderRadius: radius.sm, minHeight: 56, alignItems: "center", justifyContent: "center" },
+  visitBtn: { borderWidth: 1.4, borderColor: colors.primary, borderRadius: radius.sm, minHeight: 56, paddingHorizontal: 18, alignItems: "center", justifyContent: "center" },
+  visitText: { color: colors.primary, fontSize: 15, fontWeight: "700" },
+  swatches: { flexDirection: "row", gap: 10, marginBottom: 14 },
+  swatch: { width: 56, height: 56, borderRadius: radius.sm, overflow: "hidden", borderWidth: 2, borderColor: "transparent", backgroundColor: colors.sand },
+  swatchOn: { borderColor: colors.primary },
+  colors: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
+  colorChip: { backgroundColor: colors.sand, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
+  colorText: { color: colors.ink, fontSize: 12, fontWeight: "600" },
+  fees: { backgroundColor: colors.cream, borderRadius: radius.md, padding: 14, marginTop: 10, gap: 8 },
+  feeRow: { flexDirection: "row", justifyContent: "space-between" },
+  feeText: { color: colors.ink, fontSize: 14 },
+  feeTotal: { borderTopWidth: 1, borderTopColor: colors.sand, paddingTop: 10, marginTop: 2 },
+  feeTotalText: { color: colors.ink, fontSize: 15, fontWeight: "800" },
+  costLink: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 44, marginTop: 4 },
+  costLinkText: { color: colors.primary, fontWeight: "700", fontSize: 14 },
   ctaText: { color: colors.white, fontSize: 17, fontWeight: "700" },
 });

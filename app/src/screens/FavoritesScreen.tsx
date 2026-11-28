@@ -1,7 +1,8 @@
 import React from "react";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
+import { Text } from "../components/Text";
 import { useNavigation } from "@react-navigation/native";
-import { colors } from "../theme";
+import { colors, fonts } from "../theme";
 import { pets } from "../data/mock";
 import { useAppState } from "../state/AppState";
 import { PetCard } from "../components/PetCard";
@@ -32,6 +33,6 @@ export const FavoritesScreen = () => {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.cream },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6 },
-  emptyTitle: { fontSize: 18, fontWeight: "700", color: colors.ink },
+  emptyTitle: { fontSize: 18, fontFamily: fonts.heading, color: colors.ink },
   emptyText: { color: colors.slate },
 });

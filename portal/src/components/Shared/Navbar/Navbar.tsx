@@ -75,7 +75,7 @@ export default function Navbar({ accessToken, window }: NavbarProps) {
       <CssBaseline />
       <Box component="nav" aria-label="Main" sx={{ width: "100%", height: "72px", display: "flex", alignItems: "center" }}>
         <Container>
-          <Toolbar disableGutters sx={{ gap: 2 }}>
+          <Toolbar disableGutters sx={{ gap: { xs: 1, sm: 2 } }}>
             <IconButton
               color="inherit"
               aria-label="Open menu"
@@ -101,7 +101,10 @@ export default function Navbar({ accessToken, window }: NavbarProps) {
             </Box>
 
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-              <ThemeToggle />
+              {/* On phones the switch lives in the drawer, so the bar fits 360 px */}
+              <Box sx={{ display: { xs: "none", sm: "flex" } }}>
+                <ThemeToggle />
+              </Box>
               <AuthButton />
             </Box>
           </Toolbar>

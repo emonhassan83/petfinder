@@ -19,6 +19,8 @@ import FlagIcon from '@mui/icons-material/Flag';
 import CategoryIcon from '@mui/icons-material/Category';
 import ArticleIcon from '@mui/icons-material/Article';
 import HistoryIcon from '@mui/icons-material/History';
+import EventAvailableOutlinedIcon from '@mui/icons-material/EventAvailableOutlined';
+import AutoStoriesOutlinedIcon from '@mui/icons-material/AutoStoriesOutlined';
 import { USER_ROLE } from "@/constant/role";
 
 export const drawerItems = (role: UserRole): DrawerItem[] => {
@@ -73,6 +75,7 @@ export const drawerItems = (role: UserRole): DrawerItem[] => {
         },
         { title: "Shelter Verification", path: `admin/verification`, icon: VerifiedUserIcon },
         { title: "Reports", path: `admin/reports`, icon: FlagIcon },
+        { title: "Success Stories", path: `admin/stories`, icon: AutoStoriesOutlinedIcon },
         { title: "Subscriptions", path: `admin/subscriptions`, icon: CreditCardIcon },
         { title: "Lookups", path: `admin/lookups`, icon: CategoryIcon },
         { title: "Content (CMS)", path: `admin/cms`, icon: ArticleIcon },
@@ -128,6 +131,8 @@ export const drawerItems = (role: UserRole): DrawerItem[] => {
         { title: "Overview", path: base, icon: DashboardIcon },
         { title: "My Listings", path: `${base}/listings`, icon: PetsIcon },
         { title: "Applications", path: `${base}/applications`, icon: ManageHistoryIcon },
+        { title: "Visits", path: `${base}/visits`, icon: EventAvailableOutlinedIcon },
+        { title: "Success Stories", path: `${base}/stories`, icon: AutoStoriesOutlinedIcon },
         { title: "Messages", path: `${base}/messages`, icon: ChatBubbleOutlineIcon },
         { title: "Team", path: `${base}/members`, icon: GroupAddIcon },
         { title: "Plan & Billing", path: `${base}/billing`, icon: CreditCardIcon }

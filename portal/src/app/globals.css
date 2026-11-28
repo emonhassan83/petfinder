@@ -10,14 +10,18 @@
   --pf-rust: #9a3a12;
   --pf-peach: #fdeee4;
   --pf-sunshine: #ffc857;
-  --pf-ink: #1e2326;
-  --pf-slate: #5e6b73;
-  --pf-cream: #ffffff;
+  --pf-ink: #1e1b18;
+  --pf-slate: #6a625b;
+  --pf-cream: #faf6f0;
   --pf-paper: #ffffff;
-  --pf-soft: #faf7f5;
-  --pf-line: #ece6e1;
-  --pf-shadow: 0 12px 32px -14px rgba(30, 35, 38, 0.22);
-  --pf-footer: #0e4f55;
+  --pf-soft: #f3ece3;
+  --pf-sand: #eadfd2;
+  --pf-line: #eadfd2;
+  --pf-shadow: 0 14px 34px -16px rgba(30, 27, 24, 0.24);
+  --pf-footer: #1e1b18;
+  /* Radii (keep in sync with `radius` in lib/theme/theme.ts) */
+  --pf-radius-card: 24px;
+  --pf-radius-input: 14px;
   /* Declaring dark support stops browser auto-dark from repainting light mode; the toggle owns the theme */
   color-scheme: light dark;
 }
@@ -30,14 +34,15 @@
   --pf-accent: #f0925c;
   --pf-rust: #b8532a;
   --pf-peach: #241b17;
-  --pf-ink: #eceff0;
-  --pf-slate: #9daab0;
-  --pf-cream: #111719;
-  --pf-paper: #1a2326;
-  --pf-soft: #151d20;
-  --pf-line: #2a3539;
-  --pf-shadow: 0 12px 32px -14px rgba(0, 0, 0, 0.7);
-  --pf-footer: #0a1f22;
+  --pf-ink: #f1e9de;
+  --pf-slate: #ada297;
+  --pf-cream: #171412;
+  --pf-paper: #211d1a;
+  --pf-soft: #1c1815;
+  --pf-sand: #2e2823;
+  --pf-line: #3a332d;
+  --pf-shadow: 0 14px 34px -16px rgba(0, 0, 0, 0.7);
+  --pf-footer: #100e0c;
   color-scheme: dark;
 }
 
@@ -102,6 +107,30 @@ a {
 /* Card lift on hover */
 .pf-lift { transition: transform .25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow .25s ease; }
 .pf-lift:hover { transform: translateY(-4px); box-shadow: var(--pf-shadow); }
+
+/* Marquee strip (components/UI/Marquee.tsx): track holds two copies, so -50% loops seamlessly */
+@keyframes pf-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.pf-marquee:hover .pf-marquee-track { animation-play-state: paused; }
+
+/* Rotating ring (components/UI/CircleText.tsx) */
+@keyframes pf-spin { to { transform: rotate(360deg); } }
+.pf-spin { animation: pf-spin 18s linear infinite; }
+
+/* Arch image zoom-in on first paint (components/UI/ArchImage.tsx) */
+@keyframes pf-arch-reveal {
+  from { transform: scale(1.12); opacity: .4; }
+  to { transform: scale(1); opacity: 1; }
+}
+.pf-arch-reveal { animation: pf-arch-reveal 1.2s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Pulsing ring on photo hotspots (components/UI/HomePage/ReadyForHome) */
+@keyframes pf-ping {
+  0% { transform: scale(.8); opacity: .9; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

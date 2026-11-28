@@ -1,7 +1,8 @@
 import React from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "../components/Text";
 import { useNavigation } from "@react-navigation/native";
-import { colors } from "../theme";
+import { colors, fonts } from "../theme";
 import { pets } from "../data/mock";
 import { useAppState } from "../state/AppState";
 
@@ -47,6 +48,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 12, padding: 16, borderBottomWidth: 1, borderBottomColor: colors.line, backgroundColor: colors.white },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primaryLight, alignItems: "center", justifyContent: "center" },
   avatarText: { color: colors.primary, fontWeight: "800", fontSize: 18 },
-  title: { fontSize: 16, fontWeight: "700", color: colors.ink },
+  title: { fontSize: 16, fontFamily: fonts.heading, color: colors.ink },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6, padding: 24 },
 });

@@ -49,3 +49,26 @@ export const mockPlans = [
 ];
 
 export const mockCurrentPlan = { planId: "free", used: { listings: 4 } };
+
+//* Meet-and-greet visits (Phase 2f / v1.1). Weekly template: open days and slot times; capacity = visitors per slot.
+export const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+export const slotTimes = ["10:00", "11:00", "12:00", "14:00", "15:00", "16:00", "17:00"];
+export const mockWeeklySlots: Record<(typeof weekDays)[number], string[]> = {
+  Mon: ["10:00", "11:00", "15:00", "16:00"],
+  Tue: ["10:00", "11:00", "15:00", "16:00"],
+  Wed: ["14:00", "15:00", "16:00", "17:00"],
+  Thu: ["10:00", "11:00", "15:00", "16:00"],
+  Fri: [],
+  Sat: ["10:00", "11:00", "12:00", "14:00", "15:00"],
+  Sun: ["11:00", "12:00", "14:00"],
+};
+
+export type ShelterVisitStatus = "REQUESTED" | "CONFIRMED" | "CANCELLED" | "COMPLETED" | "NO_SHOW";
+export const mockShelterVisits: { id: string; visitor: string; pet: string; date: string; time: string; note?: string; status: ShelterVisitStatus }[] = [
+  { id: "v1", visitor: "Farhana K.", pet: "Bella", date: "2026-11-29", time: "11:00", note: "Coming with my two kids (8 and 11).", status: "REQUESTED" },
+  { id: "v2", visitor: "Tanvir A.", pet: "Max", date: "2026-11-29", time: "15:00", status: "CONFIRMED" },
+  { id: "v3", visitor: "Nusrat J.", pet: "Luna", date: "2026-11-30", time: "12:00", note: "First-time cat owner, happy to learn.", status: "REQUESTED" },
+  { id: "v4", visitor: "Arif H.", pet: "Bella", date: "2026-12-02", time: "16:00", status: "CONFIRMED" },
+  { id: "v5", visitor: "Sadia R.", pet: "Max", date: "2026-11-22", time: "10:00", status: "COMPLETED" },
+  { id: "v6", visitor: "Imran K.", pet: "Bella", date: "2026-11-20", time: "15:00", status: "NO_SHOW" },
+];

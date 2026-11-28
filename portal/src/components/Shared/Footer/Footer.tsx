@@ -8,6 +8,8 @@ import InstagramIcon from "@mui/icons-material/Instagram";
 import XIcon from "@mui/icons-material/X";
 import YouTubeIcon from "@mui/icons-material/YouTube";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import AppleIcon from "@mui/icons-material/Apple";
+import AndroidIcon from "@mui/icons-material/Android";
 import { toast } from "sonner";
 import Logo from "../Logo";
 
@@ -26,7 +28,7 @@ const columns = [
     links: [
       { label: "Adoption articles", href: "/blogs" },
       { label: "Checklist for new adopters", href: "/blogs" },
-      { label: "Adoption FAQs", href: "/blogs" },
+      { label: "Success stories", href: "/stories" },
       { label: "Saved pets", href: "/dashboard/user/favorites" },
     ],
   },
@@ -34,7 +36,7 @@ const columns = [
     title: "For shelters & owners",
     links: [
       { label: "List a pet", href: "/register" },
-      { label: "Plans & pricing", href: "/dashboard/shelter/billing" },
+      { label: "Plans & pricing", href: "/pricing" },
       { label: "Get verified", href: "/dashboard/shelter" },
       { label: "Shelter dashboard", href: "/dashboard/shelter" },
     ],
@@ -48,6 +50,12 @@ const columns = [
       { label: "Report a listing", href: "/about-us" },
     ],
   },
+];
+
+//* Store badges are placeholders until the Expo app ships (no store links yet)
+const appBadges = [
+  { icon: AppleIcon, store: "App Store" },
+  { icon: AndroidIcon, store: "Google Play" },
 ];
 
 const socials = [
@@ -70,16 +78,32 @@ const Footer = () => {
 
   return (
     <Box component="footer" sx={{ mt: 4 }}>
-      {/* Newsletter band */}
+      {/* Top row: newsletter + app badges */}
       <Box sx={{ bgcolor: "var(--pf-peach)" }}>
-        <Container sx={{ py: { xs: 4, md: 5 }, display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 3, alignItems: "center" }}>
+        <Container sx={{ py: { xs: 5, md: 7 }, display: "grid", gridTemplateColumns: { xs: "1fr", md: "1.1fr 1fr" }, gap: { xs: 3, md: 6 }, alignItems: "center" }}>
           <Box>
-            <Typography variant="h5" sx={{ fontSize: { xs: 20, md: 26 } }}>
-              Get adoption tips and new pets in your inbox
+            <Typography variant="h3" component="h2" sx={{ fontSize: { xs: 28, md: 40 }, "& em": { color: "secondary.main" } }}>
+              New pets and tips, <em>every week</em>
             </Typography>
-            <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+            <Typography color="text.secondary" sx={{ mt: 1 }}>
               One friendly email a week. Unsubscribe anytime.
             </Typography>
+            <Box sx={{ display: "flex", gap: 1.5, mt: 2.5, flexWrap: "wrap" }}>
+              {appBadges.map(({ icon: Icon, store }) => (
+                <Box
+                  key={store}
+                  aria-label={`${store} app, coming soon`}
+                  role="img"
+                  sx={{ display: "inline-flex", alignItems: "center", gap: 1, px: 2, py: 1, borderRadius: 3, bgcolor: "text.primary", color: "background.default" }}
+                >
+                  <Icon sx={{ fontSize: 26 }} />
+                  <Box sx={{ lineHeight: 1.1 }}>
+                    <Box sx={{ fontSize: 10, opacity: 0.75, textTransform: "uppercase", letterSpacing: ".08em" }}>Coming soon</Box>
+                    <Box sx={{ fontWeight: 700, fontSize: 15 }}>{store}</Box>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
           </Box>
           <Box
             component="form"
@@ -126,7 +150,7 @@ const Footer = () => {
             </Box>
             {columns.map((col) => (
               <Box key={col.title}>
-                <Typography sx={{ color: "#fff", fontFamily: "var(--font-heading), sans-serif", fontWeight: 700, mb: 1.5 }}>{col.title}</Typography>
+                <Typography sx={{ color: "#fff", fontFamily: "var(--font-heading), Georgia, serif", fontWeight: 600, fontSize: 18, mb: 1.5 }}>{col.title}</Typography>
                 <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0, display: "grid", gap: 1 }}>
                   {col.links.map((l) => (
                     <li key={l.label}>

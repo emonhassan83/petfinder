@@ -1,6 +1,7 @@
 import React, { useLayoutEffect, useState } from "react";
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { colors, radius } from "../theme";
+import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from "react-native";
+import { Text, TextInput } from "../components/Text";
+import { colors, fonts, radius } from "../theme";
 import { useAppState } from "../state/AppState";
 
 export const ChatScreen = ({ route, navigation }: any) => {

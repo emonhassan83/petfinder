@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Text, TextInput } from "../components/Text";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { colors, radius } from "../theme";
+import { colors, fonts, radius } from "../theme";
 import { Size } from "../data/mock";
 import { useNavigation } from "@react-navigation/native";
 import { useAppState } from "../state/AppState";
@@ -135,7 +136,7 @@ export const OnboardingScreen = () => {
 const styles = StyleSheet.create({
   wrap: { padding: 24, paddingTop: 32 },
   hello: { color: colors.slate, fontSize: 15 },
-  title: { color: colors.ink, fontSize: 24, fontWeight: "800", lineHeight: 34, marginTop: 6, marginBottom: 12 },
+  title: { color: colors.ink, fontSize: 24, fontFamily: fonts.heading, lineHeight: 34, marginTop: 6, marginBottom: 12 },
   qRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 24, marginBottom: 12 },
   q: { color: colors.ink, fontSize: 15, fontWeight: "500" },
   step: { color: colors.slate, fontSize: 13 },

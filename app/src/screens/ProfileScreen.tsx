@@ -1,6 +1,7 @@
 import React from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { colors, radius } from "../theme";
+import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Text } from "../components/Text";
+import { colors, fonts, radius } from "../theme";
 import { notifications } from "../data/mock";
 
 export const ProfileScreen = () => (
@@ -32,7 +33,7 @@ export const ProfileScreen = () => (
 
 const styles = StyleSheet.create({
   card: { backgroundColor: colors.white, borderRadius: radius.md, padding: 16, borderWidth: 1, borderColor: colors.line },
-  title: { fontSize: 18, fontWeight: "700", color: colors.ink },
+  title: { fontSize: 18, fontFamily: fonts.heading, color: colors.ink },
   btn: { backgroundColor: colors.primary, paddingVertical: 12, borderRadius: radius.pill, alignItems: "center" },
   btnText: { color: colors.white, fontWeight: "700" },
 });

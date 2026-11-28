@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Application, Size, conversations as seedConversations, initialApplications } from "../data/mock";
+import { Application, Size, Visit, initialVisits, conversations as seedConversations, initialApplications } from "../data/mock";
 
 export type Prefs = { species: string[]; genders: string[]; size: Size; location: string };
 const defaultPrefs: Prefs = { species: ["Dog", "Cat"], genders: ["Male", "Female"], size: "Medium", location: "Dhanmondi, Dhaka" };
@@ -17,6 +17,9 @@ type State = {
   toggleFavorite: (id: string) => void;
   applications: Application[];
   apply: (petId: string) => boolean;
+  visits: Visit[];
+  bookVisit: (petId: string, date: string, time: string) => void;
+  cancelVisit: (id: string) => void;
   conversations: Conversation[];
   sendMessage: (convId: string, text: string) => void;
   startConversation: (petId: string, shelter: string) => string;
@@ -32,6 +35,7 @@ export const AppStateProvider = ({ children }: { children: React.ReactNode }) =>
   const [onboarded, setOnboarded] = useState(false);
   const [prefs, setPrefs] = useState<Prefs>(defaultPrefs);
   const [applications, setApplications] = useState<Application[]>(initialApplications);
+  const [visits, setVisits] = useState<Visit[]>(initialVisits);
   const [conversations, setConversations] = useState<Conversation[]>(seedConversations);
 
   useEffect(() => {
@@ -69,6 +73,12 @@ export const AppStateProvider = ({ children }: { children: React.ReactNode }) =>
     return true;
   };
 
+  //* Visits live in memory like applications; a new request starts as REQUESTED.
+  const bookVisit = (petId: string, date: string, time: string) =>
+    setVisits((prev) => [{ id: `v${Date.now()}`, petId, date, time, status: "REQUESTED" }, ...prev]);
+
+  const cancelVisit = (id: string) => setVisits((prev) => prev.map((v) => (v.id === id ? { ...v, status: "CANCELLED" } : v)));
+
   const sendMessage = (convId: string, text: string) =>
     setConversations((prev) =>
       prev.map((c) => (c.id === convId ? { ...c, messages: [...c.messages, { from: "me", text }] } : c))
@@ -83,7 +93,7 @@ export const AppStateProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
   return (
-    <Ctx.Provider value={{ ready, onboarded, prefs, savePrefs, setPrefs, favorites, toggleFavorite, applications, apply, conversations, sendMessage, startConversation }}>
+    <Ctx.Provider value={{ ready, onboarded, prefs, savePrefs, setPrefs, favorites, toggleFavorite, applications, apply, visits, bookVisit, cancelVisit, conversations, sendMessage, startConversation }}>
       {children}
     </Ctx.Provider>
   );

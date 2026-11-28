@@ -1,8 +1,9 @@
 import React, { useRef } from "react";
-import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "./Text";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, radius, shadow } from "../theme";
+import { colors, fonts, radius, shadow } from "../theme";
 import { Pet } from "../data/mock";
 import { useAppState } from "../state/AppState";
 
@@ -90,7 +91,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  name: { fontSize: 20, fontWeight: "800", color: colors.ink, flexShrink: 1 },
+  name: { fontSize: 20, fontFamily: fonts.heading, color: colors.ink, flexShrink: 1 },
   meta: { color: colors.slate, fontSize: 13, marginTop: 2 },
   heart: { width: 32, height: 32, borderRadius: 9, borderWidth: 1, borderColor: colors.line, alignItems: "center", justifyContent: "center" },
 });
