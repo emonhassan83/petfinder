@@ -11,6 +11,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Box, Button, Grid, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import { useState } from "react";
 import AuthAside from "@/components/Shared/AuthAside";
+import { motion } from "framer-motion";
+import { authFormMotion } from "@/components/UI/Motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FieldValues } from "react-hook-form";
@@ -125,6 +127,8 @@ const RegisterPage = () => {
 
           {/* Form Section */}
           <Box
+            component={motion.div}
+            {...authFormMotion}
             sx={{
               flex: 1,
               // mx: 4,

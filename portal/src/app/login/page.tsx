@@ -13,6 +13,8 @@ import { FieldValues } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import LoginIcon from "@mui/icons-material/Login";
+import { motion } from "framer-motion";
+import { authFormMotion } from "@/components/UI/Motion";
 import { useEffect, useState } from "react";
 import ForgetPasswordModal from "./components/ForgetPasswordModal";
 import AuthAside from "@/components/Shared/AuthAside";
@@ -135,6 +137,8 @@ const LoginPage = () => {
         {/* Right Side Form */}
         <Grid item xs={12} sm={6} sx={{flex: 1}}>
           <Stack
+            component={motion.div}
+            {...authFormMotion}
             sx={{
               height: "100%",
               justifyContent: "center",

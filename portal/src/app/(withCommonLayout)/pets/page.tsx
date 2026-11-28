@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo, Suspense } from "react";
 import { Alert, Box, Chip, Container, Grid, MenuItem, Pagination, Skeleton, TextField, Typography } from "@mui/material";
 import axios from "axios";
 import { useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
+import { ease } from "@/components/UI/Motion";
 import FilterSidebar, { emptyFilters, matchesColor } from "./components/FilterSidebar/FilterSidebar";
 import QuickViewDrawer from "@/components/UI/QuickViewDrawer";
 import PetCard from "./components/petCard/PetCard";
@@ -185,18 +187,27 @@ const PetsContent = () => {
                 ))}
               </Grid>
             ) : sorted.length === 0 ? (
-              <Box sx={{ textAlign: "center", py: 10, bgcolor: "var(--pf-soft)", borderRadius: "var(--pf-radius-card)" }}>
-                <Typography variant="h5">No pets found</Typography>
-                <Typography color="text.secondary" sx={{ mt: 1 }}>
-                  Try another area or clear a filter.
-                </Typography>
-              </Box>
+              <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4, ease }}>
+                <Box sx={{ textAlign: "center", py: 10, bgcolor: "var(--pf-soft)", borderRadius: "var(--pf-radius-card)" }}>
+                  <Typography variant="h5">No pets found</Typography>
+                  <Typography color="text.secondary" sx={{ mt: 1 }}>
+                    Try another area or clear a filter.
+                  </Typography>
+                </Box>
+              </motion.div>
             ) : (
               <>
                 <Grid container spacing={3}>
                   {sorted.map((pet: any, i: number) => (
-                    <Grid item xs={12} sm={6} lg={4} key={pet.id} className="pf-fade-up" style={{ animationDelay: `${i * 0.05}s` }}>
-                      <PetCard pet={pet} onQuickView={setQuick} />
+                    <Grid item xs={12} sm={6} lg={4} key={pet.id}>
+                      <motion.div
+                        initial={{ opacity: 0, y: 24, scale: 0.97 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{ duration: 0.5, ease, delay: Math.min(i, 8) * 0.06 }}
+                        style={{ height: "100%" }}
+                      >
+                        <PetCard pet={pet} onQuickView={setQuick} />
+                      </motion.div>
                     </Grid>
                   ))}
                 </Grid>

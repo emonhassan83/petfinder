@@ -96,13 +96,7 @@ a {
 .pf-float { animation: pf-float 5s ease-in-out infinite; }
 .pf-pop { animation: pf-pop .35s ease; }
 
-/* Scroll reveal (toggled by components/UI/Reveal.tsx) */
-.pf-reveal {
-  opacity: 0;
-  transform: translateY(24px);
-  transition: opacity .7s cubic-bezier(0.22, 1, 0.36, 1), transform .7s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.pf-reveal.is-visible { opacity: 1; transform: none; }
+/* Scroll reveal, staggered lists and page transitions use framer-motion (components/UI/Reveal.tsx, Motion.tsx) */
 
 /* Card lift on hover */
 .pf-lift { transition: transform .25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow .25s ease; }
@@ -139,7 +133,6 @@ a {
     transition-duration: .01ms !important;
     scroll-behavior: auto !important;
   }
-  .pf-reveal { opacity: 1; transform: none; }
 }
 
 /* Organic blob used behind the hero pet */

@@ -5,6 +5,8 @@ import { Box, Button, Container, Typography } from "@mui/material";
 import ArrowOutwardIcon from "@mui/icons-material/ArrowOutward";
 import VerifiedIcon from "@mui/icons-material/Verified";
 import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
+import { ease } from "@/components/UI/Motion";
 import HeroSearch from "./components/HeroSearch";
 import ArchImage from "../../ArchImage";
 import CircleText from "../../CircleText";
@@ -74,36 +76,55 @@ const HeroSection = () => {
                     font: "inherit",
                     fontWeight: 700,
                     fontSize: 14,
+                    position: "relative",
+                    isolation: "isolate",
                     color: audience === a ? "background.default" : "text.secondary",
-                    bgcolor: audience === a ? "text.primary" : "transparent",
-                    transition: "background-color .25s ease, color .25s ease",
+                    bgcolor: "transparent",
+                    transition: "color .25s ease",
                     "&:focus-visible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 },
                   }}
                 >
+                  {/* Sliding pill behind the active option */}
+                  {audience === a && (
+                    <motion.span
+                      layoutId="hero-audience-pill"
+                      transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                      style={{ position: "absolute", inset: 0, borderRadius: 999, zIndex: -1, background: "var(--mui-palette-text-primary)" }}
+                    />
+                  )}
                   {a === "adopt" ? "I want to adopt" : "I'm rehoming a pet"}
                 </Box>
               ))}
             </Box>
 
-            <Typography
-              key={`h-${audience}`}
-              variant="h1"
-              className="pf-fade-up"
-              sx={{ fontSize: { xs: "2.5rem", sm: "3.2rem", md: "4.4rem" }, color: "text.primary" }}
-            >
-              {c.before}{" "}
-              <Box component="em" sx={{ color: "secondary.main", fontStyle: "italic" }}>
-                {c.em}
-              </Box>{" "}
-              {c.after}
-            </Typography>
-            <Typography
-              key={`p-${audience}`}
-              className="pf-fade-up pf-delay-1"
-              sx={{ mt: 2.5, maxWidth: 480, mx: { xs: "auto", md: 0 }, color: "text.secondary", fontSize: { xs: 16, md: 18 }, lineHeight: 1.65 }}
-            >
-              {c.sub}
-            </Typography>
+            {/* Copy cross-fades when the audience switch changes */}
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={audience}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.35, ease }}
+              >
+                <Typography
+                  variant="h1"
+                  className="pf-fade-up"
+                  sx={{ fontSize: { xs: "2.5rem", sm: "3.2rem", md: "4.4rem" }, color: "text.primary" }}
+                >
+                  {c.before}{" "}
+                  <Box component="em" sx={{ color: "secondary.main", fontStyle: "italic" }}>
+                    {c.em}
+                  </Box>{" "}
+                  {c.after}
+                </Typography>
+                <Typography
+                  className="pf-fade-up pf-delay-1"
+                  sx={{ mt: 2.5, maxWidth: 480, mx: { xs: "auto", md: 0 }, color: "text.secondary", fontSize: { xs: 16, md: 18 }, lineHeight: 1.65 }}
+                >
+                  {c.sub}
+                </Typography>
+              </motion.div>
+            </AnimatePresence>
 
             <Box className="pf-fade-up pf-delay-2" sx={{ display: "flex", gap: 1.5, mt: 4, flexWrap: "wrap", justifyContent: { xs: "center", md: "flex-start" } }}>
               <Button component={Link} href={c.cta.href} size="large" endIcon={<ArrowOutwardIcon />}>
