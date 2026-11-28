@@ -1,68 +1,96 @@
-import { jwtDecode } from "jwt-decode";
-
+import { jwtVerify } from "jose";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-
-type Role = keyof typeof roleBasedPrivateRoutes;
+import { authKey } from "@/constant/authKey";
 
 const AuthRoutes = ["/login", "/register"];
+//* Matched EXACTLY (any role may open them); every other /dashboard/* path goes through the role rules
 const commonPrivateRoutes = ["/dashboard", "/dashboard/profile"];
-const roleBasedPrivateRoutes = {
-  USER: [/^\/dashboard\/user/],
-  ADMIN: [/^\/dashboard\/admin/],
-  SUPER_ADMIN: [/^\/dashboard\/admin/],
-  OWNER: [/^\/dashboard\/shelter/],
-  SHELTER: [/^\/dashboard\/shelter/],
+
+const roleHome: Record<string, string> = {
+  USER: "/dashboard/user",
+  ADMIN: "/dashboard/admin",
+  SUPER_ADMIN: "/dashboard/admin",
+  OWNER: "/dashboard/shelter",
+  SHELTER: "/dashboard/shelter",
+  SHELTER_MEMBER: "/dashboard/shelter",
 };
 
-// This function can be marked `async` if using `await` inside
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+const roleBasedPrivateRoutes: Record<string, RegExp[]> = {
+  USER: [/^\/dashboard\/user(\/|$)/],
+  ADMIN: [/^\/dashboard\/admin(\/|$)/],
+  SUPER_ADMIN: [/^\/dashboard\/admin(\/|$)/],
+  OWNER: [/^\/dashboard\/shelter(\/|$)/],
+  SHELTER: [/^\/dashboard\/shelter(\/|$)/],
+  SHELTER_MEMBER: [/^\/dashboard\/shelter(\/|$)/],
+};
 
-  const accessToken = request.cookies.get("accessToken")?.value;
-  
-  //* if access token is not found then redirect login page
+//* Verifies signature (HS256, shared JWT_SECRET) and expiry. Returns the role, or null when the
+//* token is invalid, expired, or a special-purpose token (email verification / reset).
+const verifyRole = async (token: string): Promise<string | null> => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) return null; //* fail closed when misconfigured
+  try {
+    const { payload } = await jwtVerify(token, new TextEncoder().encode(secret), {
+      algorithms: ["HS256"],
+    });
+    if (payload.purpose || typeof payload.role !== "string" || !payload.userId) return null;
+    return payload.role;
+  } catch {
+    return null;
+  }
+};
+
+const toLogin = (request: NextRequest, clearCookie: boolean) => {
+  const url = new URL("/login", request.url);
+  if (request.nextUrl.pathname.startsWith("/dashboard")) {
+    url.searchParams.set("redirect", request.nextUrl.pathname);
+  }
+  const res = NextResponse.redirect(url);
+  if (clearCookie) res.cookies.delete(authKey);
+  return res;
+};
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const isAuthRoute = AuthRoutes.includes(pathname);
+  const accessToken = request.cookies.get(authKey)?.value;
+
   if (!accessToken) {
-    //* access auth-route for unauthorized users
-    if (AuthRoutes.includes(pathname)) {
-      return NextResponse.next();
-    } else {
-      return NextResponse.redirect(new URL("/login", request.url));
-    }
+    return isAuthRoute ? NextResponse.next() : toLogin(request, false);
   }
 
-  //* if access token is exists then access all routes
-  if (
-    accessToken &&
-    commonPrivateRoutes.some(route => pathname.startsWith(route))
-  ) {
+  const role = await verifyRole(accessToken);
+
+  if (!role) {
+    //* invalid/expired token: drop the stale cookie; auth pages stay reachable
+    if (isAuthRoute) {
+      const res = NextResponse.next();
+      res.cookies.delete(authKey);
+      return res;
+    }
+    return toLogin(request, true);
+  }
+
+  const home = roleHome[role] ?? "/dashboard/profile";
+
+  //* already signed in: send auth pages and the bare /dashboard to the role's dashboard
+  if (isAuthRoute || pathname === "/dashboard") {
+    return NextResponse.redirect(new URL(home, request.url));
+  }
+
+  if (commonPrivateRoutes.includes(pathname)) {
     return NextResponse.next();
   }
 
-  //* redirect on role based private routes
-  let decodedData = null;
-
-  if (accessToken) {
-    try {
-      decodedData = jwtDecode(accessToken) as any;
-    } catch {
-      return NextResponse.redirect(new URL("/login", request.url));
-    }
+  const routes = roleBasedPrivateRoutes[role] ?? [];
+  if (routes.some((route) => route.test(pathname))) {
+    return NextResponse.next();
   }
 
-  const role = decodedData?.role;
-
-  if (role && roleBasedPrivateRoutes[role as Role]) {
-    const routes = roleBasedPrivateRoutes[role as Role]; //* get specific role based route
-    if (routes.some((route) => pathname.match(route))) {
-      return NextResponse.next();
-    }
-  }
-
-  return NextResponse.redirect(new URL("/", request.url));
+  return NextResponse.redirect(new URL(home, request.url));
 }
 
-// See "Matching Paths" below to learn more
 export const config = {
-  matcher: ["/login", "/register", "/dashboard/:page*"],
+  matcher: ["/login", "/register", "/dashboard", "/dashboard/:path*"],
 };

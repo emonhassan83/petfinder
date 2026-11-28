@@ -191,10 +191,11 @@ Ensure you have the following installed locally:
    ```
    Then fill in the values (see the [reference](#-environment-variables-reference)).
 
-4. **Run database migrations & generate Prisma client**:
+4. **Run database migrations, generate the Prisma client and seed**:
    ```bash
-   npx prisma migrate dev --name init
+   npx prisma migrate deploy
    npx prisma generate
+   npx prisma db seed   # lookups, plans, admin/super admin and a sample shelter
    ```
 
 5. **Start development server**:
@@ -261,6 +262,9 @@ Ensure you have the following installed locally:
 | `RESET_PASS_LINK` | Frontend URL for password reset page | `http://localhost:3000/reset-password` |
 | `EMAIL` | Shelter sender email for reset emails | `notifications@petfinder.org` |
 | `APP_PASS` | Sender email app password | `abcd efgh ijkl mnop` |
+| `CORS_ORIGINS` | Comma-separated allowed browser origins | `http://localhost:3000` |
+
+The full list (cookies, rate limits, Cloudinary, Stripe, Google sign-in, seed accounts) is in `server/.env.example`.
 
 ### Portal (`portal/.env`)
 | Variable | Description | Example |

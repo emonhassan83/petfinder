@@ -1,12 +1,10 @@
-import PetFrom from "@/components/Forms/PetForm";
-import PetSelectField from "@/components/Forms/PetSelectField";
-import PetModal from "@/components/Shared/PetModal/PetModal";
-import { useUpdateAdoptionRequestStatusMutation } from "@/redux/api/adoptionApi";
-import { Button, Grid } from "@mui/material";
-import { FieldValues } from "react-hook-form";
-import { toast } from "sonner";
+import { useEffect, useState } from "react";
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, TextField, Typography } from "@mui/material";
+import { useDecideApplicationMutation } from "@/redux/api/inboxApi";
+import { runMutation } from "@/utils/dashboardHelpers";
 
-const statusOptions = ["PENDING", "APPROVED", "REJECTED"];
+//* Transitions the API accepts: APPROVED, REJECTED, COMPLETED (PENDING/WITHDRAWN are applicant-driven)
+const statusOptions = ["APPROVED", "REJECTED", "COMPLETED"];
 
 type TProps = {
   open: boolean;
@@ -15,50 +13,45 @@ type TProps = {
 };
 
 const UpdateAdoptStatusModal = ({ open, setOpen, data }: TProps) => {
-  const [updateAdoptionRequestStatus, {isLoading}] = useUpdateAdoptionRequestStatusMutation();
+  const [decide, { isLoading }] = useDecideApplicationMutation();
+  const [status, setStatus] = useState("APPROVED");
+  const [note, setNote] = useState("");
 
-  const handleFormSubmit = async (values: FieldValues) => {
-    const { status } = values;
+  useEffect(() => {
+    setStatus(statusOptions.includes(data?.status) ? data.status : "APPROVED");
+    setNote("");
+  }, [data]);
 
-    try {
-      const statusData = {
-        id: data.id,
-        status,
-      };
-
-      const res = await updateAdoptionRequestStatus(statusData);
-      // console.log(res);
-      if (res?.data?.id) {
-        toast.success("User status updated successfully!");
-        setOpen(false);
-      }
-    } catch (error: any) {
-      toast.error(error.message);
-      console.error(error.message);
-    }
-  };
-
-  const defaultValues = {
-    status: data?.status,
+  const submit = async () => {
+    const r = await runMutation(decide({ id: data.id, status, decisionNote: note.trim() || undefined }), "Application updated.");
+    if (r.ok) setOpen(false);
   };
 
   return (
-    <PetModal maxWidth="xs" open={open} setOpen={setOpen} title="Update Pet Adopt status">
-      <PetFrom onSubmit={handleFormSubmit} defaultValues={defaultValues}>
-        <Grid container spacing={2}>
-        <Grid item xs={12} sm={12}>
-            <PetSelectField
-              items={statusOptions}
-              name="status"
-              label="status"
-              sx={{ mb: 2,}}
-            />
-          </Grid>
-        </Grid>
-
-        <Button type="submit">Update Adopt Status</Button>
-      </PetFrom>
-    </PetModal>
+    <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs">
+      <DialogTitle>Update application status</DialogTitle>
+      <DialogContent sx={{ display: "grid", gap: 2 }}>
+        <Typography variant="body2" color="text.secondary">
+          Current status: {data?.status}. Approving sets the pet to PENDING and rejects other pending applications; completing marks the pet ADOPTED.
+        </Typography>
+        <TextField select label="New status" value={status} onChange={(e) => setStatus(e.target.value)}>
+          {statusOptions.map((s) => (
+            <MenuItem key={s} value={s}>
+              {s}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField label="Note (optional)" multiline minRows={2} value={note} onChange={(e) => setNote(e.target.value)} inputProps={{ maxLength: 1000 }} />
+      </DialogContent>
+      <DialogActions sx={{ p: 2 }}>
+        <Button variant="text" color="inherit" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+        <Button disabled={isLoading} onClick={submit}>
+          Update
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 

@@ -8,6 +8,9 @@ import ShareOutlinedIcon from "@mui/icons-material/ShareOutlined";
 import FlagOutlinedIcon from "@mui/icons-material/FlagOutlined";
 import { toast } from "sonner";
 import { useFavorites } from "@/hooks/useFavorites";
+import { useAuthUser } from "@/hooks/useAuthUser";
+import { useSubmitUserReportMutation } from "@/redux/api/userReportApi";
+import { usePathname, useRouter } from "next/navigation";
 
 const reasons = ["Scam or fraud", "Animal welfare concern", "Wrong information", "Pet already adopted", "Other"];
 
@@ -18,6 +21,10 @@ const PetActions = ({ pet }: { pet: any }) => {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
+  const { user } = useAuthUser();
+  const [submit, { isLoading: reporting }] = useSubmitUserReportMutation();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const share = async () => {
     const url = window.location.href;
@@ -32,12 +39,31 @@ const PetActions = ({ pet }: { pet: any }) => {
     }
   };
 
-  const submitReport = () => {
-    //* Preview only: reports API arrives in Phase 3c
-    toast.success("Thanks. Our team will review this listing.");
-    setOpen(false);
-    setReason("");
-    setNote("");
+  const openReport = () => {
+    if (!user) {
+      toast.info("Log in to report a listing");
+      router.push(`/login?redirect=${encodeURIComponent(pathname || "/pets")}`);
+      return;
+    }
+    setOpen(true);
+  };
+
+  //* POST /reports (10/hour; a duplicate open report on the same listing returns 409)
+  const submitReport = async () => {
+    if (String(pet.id).startsWith("preview-")) {
+      toast.info("Preview listings cannot be reported");
+      setOpen(false);
+      return;
+    }
+    try {
+      await submit({ targetType: "PET", targetId: pet.id, reason, ...(note.trim() ? { details: note.trim() } : {}) }).unwrap();
+      toast.success("Thanks. Our team will review this listing.");
+      setOpen(false);
+      setReason("");
+      setNote("");
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Could not send the report");
+    }
   };
 
   return (
@@ -48,7 +74,7 @@ const PetActions = ({ pet }: { pet: any }) => {
           color="secondary"
           startIcon={fav ? <FavoriteIcon /> : <FavoriteBorderIcon />}
           aria-pressed={fav}
-          onClick={() => toggle({ id: pet.id, name: pet.name, image: pet.image, breed: pet.breed, age: pet.age, location: pet.location })}
+          onClick={() => toggle({ id: pet.id })}
         >
           {fav ? "Saved" : "Save"}
         </Button>
@@ -56,7 +82,7 @@ const PetActions = ({ pet }: { pet: any }) => {
           Share
         </Button>
       </Box>
-      <Button variant="text" size="small" startIcon={<FlagOutlinedIcon />} onClick={() => setOpen(true)} sx={{ mt: 1.5, color: "text.secondary", mx: "auto", display: "flex" }}>
+      <Button variant="text" size="small" startIcon={<FlagOutlinedIcon />} onClick={openReport} sx={{ mt: 1.5, color: "text.secondary", mx: "auto", display: "flex" }}>
         Report this listing
       </Button>
 
@@ -76,7 +102,7 @@ const PetActions = ({ pet }: { pet: any }) => {
           <Button variant="text" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button disabled={!reason} onClick={submitReport}>
+          <Button disabled={!reason || reporting} onClick={submitReport}>
             Submit report
           </Button>
         </DialogActions>

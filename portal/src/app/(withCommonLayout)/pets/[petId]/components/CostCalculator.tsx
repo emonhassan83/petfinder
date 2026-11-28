@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { Box, Chip, FormControlLabel, Switch, Typography } from "@mui/material";
-import { CostInputs, estimateFirstYear, taka } from "@/lib/petCosts";
+import { CostEstimates, CostInputs, estimateFirstYear, taka } from "@/lib/petCosts";
 
-type Props = { species: string; size?: string; fee?: number; name: string };
+//* `fee` is in major units (taka); `estimates` is the cost.estimates public setting when available
+type Props = { species: string; size?: string; fee?: number; name: string; estimates?: CostEstimates };
 
 const Choice = <T extends string>({ label, value, options, onChange }: { label: string; value: T; options: { v: T; label: string }[]; onChange: (v: T) => void }) => (
   <Box>
@@ -27,7 +28,7 @@ const Choice = <T extends string>({ label, value, options, onChange }: { label: 
 );
 
 //* First-year cost estimate (Pawvelle's hamper calculator, applied to adoption). Pure client-side maths.
-const CostCalculator = ({ species, size, fee = 0, name }: Props) => {
+const CostCalculator = ({ species, size, fee = 0, name, estimates }: Props) => {
   const [inputs, setInputs] = useState<CostInputs>({
     species,
     size: (["Small", "Medium", "Large"].includes(size ?? "") ? size : "Medium") as CostInputs["size"],
@@ -37,7 +38,7 @@ const CostCalculator = ({ species, size, fee = 0, name }: Props) => {
     grooming: species === "Dog",
   });
   const set = <K extends keyof CostInputs>(k: K, v: CostInputs[K]) => setInputs((p) => ({ ...p, [k]: v }));
-  const { lines, total } = useMemo(() => estimateFirstYear(inputs, fee), [inputs, fee]);
+  const { lines, total } = useMemo(() => estimateFirstYear(inputs, fee, estimates), [inputs, fee, estimates]);
 
   return (
     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 3, bgcolor: "var(--pf-soft)", borderRadius: "var(--pf-radius-card)", p: { xs: 2.5, md: 3.5 } }}>

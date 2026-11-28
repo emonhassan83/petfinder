@@ -5,24 +5,36 @@ import PageHeader from "@/components/Shared/PageHeader";
 import BeforeAfter from "@/components/UI/BeforeAfter";
 import { findStory, storyBody, successStories } from "@/mock/stories";
 import { findPreviewShelter } from "@/mock/pets";
+import { UiStory, fetchApi, normalizeStory } from "@/lib/apiData";
 
 const formatDate = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 
-export const generateStaticParams = () => successStories.map((s) => ({ storyId: s.id }));
+//* Preview ids (s1, s2…) come from mock data; everything else from GET /success-stories/:id
+const loadStory = async (id: string): Promise<{ story: UiStory; shelter?: { id: string; name: string } } | null> => {
+  const preview = findStory(id);
+  if (preview) {
+    const s = findPreviewShelter(preview.shelterId);
+    return { story: { ...preview, body: storyBody(preview) }, shelter: s ? { id: s.id, name: s.name } : undefined };
+  }
+  const res = await fetchApi<any>(`/success-stories/${id}`);
+  if (!res?.data) return null;
+  const story = normalizeStory(res.data);
+  return { story, shelter: story.shelterId ? { id: story.shelterId, name: story.shelterName || "the shelter" } : undefined };
+};
 
 export const generateMetadata = async ({ params }: { params: Promise<{ storyId: string }> }) => {
-  const story = findStory((await params).storyId);
+  const story = (await loadStory((await params).storyId))?.story;
   return story
     ? { title: `${story.petName}: ${story.title} | Petfinder`, description: story.excerpt }
     : { title: "Story not found | Petfinder" };
 };
 
-//* Single success story (preview data; GET /success-stories/:id in Phase 3f)
+//* Single success story (GET /success-stories/:id; published stories only for the public)
 const StoryPage = async ({ params }: { params: Promise<{ storyId: string }> }) => {
   const { storyId } = await params;
-  const story = findStory(storyId);
+  const loaded = await loadStory(storyId);
 
-  if (!story) {
+  if (!loaded) {
     return (
       <Container sx={{ py: 12, textAlign: "center" }}>
         <Typography variant="h4">Story not found</Typography>
@@ -33,12 +45,16 @@ const StoryPage = async ({ params }: { params: Promise<{ storyId: string }> }) =
     );
   }
 
-  const shelter = findPreviewShelter(story.shelterId);
-  const more = successStories.filter((s) => s.id !== story.id).slice(0, 3);
+  const { story, shelter } = loaded;
+  const moreRes = story.id.startsWith("s") && findStory(story.id) ? null : await fetchApi<any[]>("/success-stories?limit=4");
+  const more: UiStory[] = moreRes
+    ? (moreRes.data ?? []).map(normalizeStory).filter((s) => s.id !== story.id).slice(0, 3)
+    : successStories.filter((s) => s.id !== story.id).slice(0, 3);
+  const byline = [story.petName, story.family && `adopted by ${story.family}${story.city ? `, ${story.city}` : ""}`, story.adoptedOn && formatDate(story.adoptedOn)].filter(Boolean).join(" · ");
 
   return (
     <>
-      <PageHeader title={story.title} crumbs={[{ label: "Success stories", href: "/stories" }, { label: story.petName }]} subtitle={`${story.petName} · adopted by ${story.family}, ${story.city} · ${formatDate(story.adoptedOn)}`} />
+      <PageHeader title={story.title} crumbs={[{ label: "Success stories", href: "/stories" }, { label: story.petName }]} subtitle={byline} />
 
       <Container maxWidth="md" sx={{ py: { xs: 4, md: 7 } }}>
         {story.before && story.after ? (
@@ -50,7 +66,7 @@ const StoryPage = async ({ params }: { params: Promise<{ storyId: string }> }) =
         )}
 
         <Box sx={{ mt: 5, display: "grid", gap: 2.5 }}>
-          {storyBody(story).map((p, i) => (
+          {(story.body ?? [story.excerpt]).map((p, i) => (
             <Typography
               key={i}
               sx={
@@ -81,6 +97,8 @@ const StoryPage = async ({ params }: { params: Promise<{ storyId: string }> }) =
           </Box>
         )}
 
+        {more.length > 0 && (
+        <>
         <Divider sx={{ my: 6 }} />
 
         <Typography variant="h4" sx={{ fontSize: { xs: 24, md: 30 }, mb: 3 }}>
@@ -101,6 +119,8 @@ const StoryPage = async ({ params }: { params: Promise<{ storyId: string }> }) =
             </LinkBox>
           ))}
         </Box>
+        </>
+        )}
       </Container>
     </>
   );

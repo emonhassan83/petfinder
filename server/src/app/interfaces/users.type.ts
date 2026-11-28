@@ -20,12 +20,16 @@ export type IUserData = {
   password: string;
   contactNumber: string;
   address: string;
+  role?: UserRole;
 };
 
+//* Authenticated user attached to `req.user` by the `auth` middleware.
+//* `id` and `userId` are the same value (`userId` kept for existing code).
 export type IUser = {
+  id: string;
   userId: string;
   email: string;
   role: UserRole;
-  iat: number;
-  exp: number;
+  iat?: number;
+  exp?: number;
 };

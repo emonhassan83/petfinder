@@ -1,46 +1,42 @@
-// "use server";
-import { jwtDecode } from "jwt-decode";
 import { FieldValues } from "react-hook-form";
-import setAccessToken from "./setAccessToken";
+import { decodedToken } from "@/utils/jwt";
 
+//* Dashboard home per API role (USER, OWNER, SHELTER, SHELTER_MEMBER, ADMIN, SUPER_ADMIN)
+export const dashboardPathForRole = (role?: string) => {
+  switch ((role || "").toUpperCase()) {
+    case "ADMIN":
+    case "SUPER_ADMIN":
+      return "/dashboard/admin";
+    case "SHELTER":
+    case "OWNER":
+    case "SHELTER_MEMBER":
+      return "/dashboard/shelter";
+    case "USER":
+      return "/dashboard/user";
+    default:
+      return "/dashboard/profile";
+  }
+};
+
+//* Logs in with credentials. `credentials: "include"` lets the API set its httpOnly refresh cookie.
+//* Returns the API envelope plus `redirectUrl` for the caller to navigate to.
 export const userLogin = async (data: FieldValues) => {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/auth/login`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-      // cache: "no-store",
-      credentials: "include",
-    }
-  );
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: data.email, password: data.password }),
+    credentials: "include",
+  });
 
-  let decodedData = null;
   const userInfo = await res.json();
-
-  if (userInfo.data.accessToken) {
-    decodedData = jwtDecode(userInfo.data.accessToken) as any;
-  }
-
-  const role = (decodedData?.role).toLowerCase();
-
-  if (userInfo.data.accessToken) {
-    let redirectUrl = "/dashboard/profile";
-
-    if (role === "admin" || role === "super_admin") {
-      redirectUrl = "/dashboard/admin";
-    } else if (role === "shelter" || role === "owner") {
-      redirectUrl = "/dashboard/shelter";
-    } else if (role === "user") {
-      redirectUrl = "/dashboard/user";
+  const accessToken: string | undefined = userInfo?.data?.accessToken;
+  let redirectUrl = "/dashboard/profile";
+  if (accessToken) {
+    try {
+      redirectUrl = dashboardPathForRole((decodedToken(accessToken) as { role?: string }).role);
+    } catch {
+      //* keep default
     }
-
-    setAccessToken(userInfo.data.accessToken, {
-      redirect: redirectUrl,
-    });
   }
-
-  return userInfo;
+  return { ...userInfo, redirectUrl };
 };

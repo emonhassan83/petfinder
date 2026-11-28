@@ -15,7 +15,7 @@ import PetAdoptSection from "./components/PetAdoptSection";
 import assets from "@/assets";
 import { useState } from "react";
 import ProfileUpdateModal from "./components/EditProfileModal";
-import uploadImageToImgbb from "@/utils/imageUploader";
+import uploadImage from "@/utils/imageUploader";
 import { toast } from "sonner";
 import LoadingPage from "@/components/Shared/Loader/LoadingPage";
 import { useGetMyAdoptionRequestsQuery } from "@/redux/api/adoptionApi";
@@ -36,18 +36,12 @@ const ProfilePage = () => {
 
   const handleFileUpload = async (file: File) => {
     try {
-      const image = await uploadImageToImgbb(file);
-
-      const updatedUserData = {
-        profilePhoto: image,
-      };
-
-      const upload = await updateMyProfile(updatedUserData);
-      if (upload?.data) {
-        toast.success("Profile photo updated successfully");
-      }
-    } catch (error) {
-      console.error("Failed to upload image:", error);
+      //* POST /media/upload, then save the hosted URL on the profile
+      const image = await uploadImage(file);
+      await updateMyProfile({ profilePhoto: image }).unwrap();
+      toast.success("Profile photo updated successfully");
+    } catch (error: any) {
+      toast.error(error?.data?.message || error?.message || "Could not update the photo");
     }
   };
 

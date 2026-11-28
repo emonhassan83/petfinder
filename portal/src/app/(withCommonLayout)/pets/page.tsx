@@ -12,16 +12,29 @@ import Meta from "@/components/Meta/MetaData";
 import PageHeader from "@/components/Shared/PageHeader";
 import HeroSearch from "@/components/UI/HomePage/HeroSection/components/HeroSearch";
 import { previewPets } from "@/mock/pets";
+import { API_URL, normalizePet } from "@/lib/apiData";
+import { usePubGetSpeciesQuery } from "@/redux/api/lookupApi";
 
 const PAGE_SIZE = 9;
-const speciesTabs = [
+
+//* Used until /lookups/species answers (or when the API is offline)
+const fallbackTabs = [
   { label: "All pets", value: "" },
   { label: "Dogs", value: "Dog" },
   { label: "Cats", value: "Cat" },
-  { label: "Other animals", value: "Rabbit" },
+  { label: "Rabbits", value: "Rabbit" },
 ];
 
-//* Client-side filtering for preview pets when the API is offline
+//* API sort options (petSortableFields: createdAt, updatedAt, name, age, views)
+const sortOptions: Record<string, { label: string; sortBy: string; sortOrder: "asc" | "desc" }> = {
+  newest: { label: "Newest", sortBy: "createdAt", sortOrder: "desc" },
+  age: { label: "Youngest first", sortBy: "age", sortOrder: "asc" },
+  oldest: { label: "Oldest first", sortBy: "age", sortOrder: "desc" },
+  name: { label: "Name A-Z", sortBy: "name", sortOrder: "asc" },
+  popular: { label: "Most viewed", sortBy: "views", sortOrder: "desc" },
+};
+
+//* Client-side filtering for preview pets when the API is unreachable
 const filterPreview = (filters: any, term: string) =>
   previewPets.filter(
     (p) =>
@@ -45,39 +58,61 @@ const PetsContent = () => {
   const [filters, setFilters] = useState({ ...emptyFilters, species: params.get("species") || "", breed: params.get("breed") || "" });
   const [loading, setLoading] = useState(true);
   const [quick, setQuick] = useState<any>(null);
+  const { data: speciesList } = usePubGetSpeciesQuery();
+  const speciesTabs = speciesList?.length
+    ? [{ label: "All pets", value: "" }, ...speciesList.map((sp: any) => ({ label: sp.name.endsWith("s") ? sp.name : `${sp.name}s`, value: sp.name }))]
+    : fallbackTabs;
 
   //* A new hero search updates the URL; mirror its species/breed into the filters
   useEffect(() => {
     setFilters((f) => ({ ...f, species: params.get("species") || "", breed: params.get("breed") || "" }));
   }, [params]);
 
-  useEffect(() => setPage(1), [searchTerm, filters]);
+  useEffect(() => setPage(1), [searchTerm, filters, sort]);
 
   useEffect(() => {
-    const cleaned = Object.fromEntries(Object.entries(filters).filter(([, v]) => v));
+    //* coat colour chip -> `colors` (matches any entry of the pet's colours array)
+    const { color, ...rest } = filters;
+    const cleaned = Object.fromEntries(Object.entries(rest).filter(([, v]) => v));
+    const order = sortOptions[sort] ?? sortOptions.newest;
+    let active = true;
     setLoading(true);
     axios
-      .get(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/pets`, {
+      .get(`${API_URL}/pets`, {
         params: {
           limit: PAGE_SIZE,
           page,
           ...(searchTerm ? { searchTerm } : {}),
-          ...(sort === "age" ? { sortBy: "age", sortOrder: "asc" } : {}),
+          sortBy: order.sortBy,
+          sortOrder: order.sortOrder,
+          ...(color ? { colors: color } : {}),
           ...cleaned,
         },
       })
       .then(({ data }) => {
-        setPets(data.data);
-        setTotal(data.meta.total);
+        if (!active) return;
+        setPets((data.data ?? []).map(normalizePet));
+        setTotal(data.meta?.total ?? 0);
         setPreview(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        if (!active) return;
+        //* The offline preview is only for an unreachable API (no HTTP response at all)
+        if (err?.response) {
+          setPets([]);
+          setTotal(0);
+          setPreview(false);
+          return;
+        }
         const list = filterPreview(filters, searchTerm);
         setPets(list);
         setTotal(list.length);
         setPreview(true);
       })
-      .finally(() => setLoading(false));
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
   }, [page, filters, searchTerm, sort]);
 
   const sorted = useMemo(() => (preview && sort === "age" ? [...pets].sort((a, b) => a.age - b.age) : pets), [pets, preview, sort]);
@@ -121,8 +156,11 @@ const PetsContent = () => {
               {loading ? "Searching…" : `${total} ${total === 1 ? "pet" : "pets"} found`}
             </Typography>
             <TextField select size="small" label="Sort by" value={sort} onChange={(e) => setSort(e.target.value)} sx={{ minWidth: 150 }}>
-              <MenuItem value="newest">Newest</MenuItem>
-              <MenuItem value="age">Youngest first</MenuItem>
+              {Object.entries(sortOptions).map(([value, o]) => (
+                <MenuItem key={value} value={value}>
+                  {o.label}
+                </MenuItem>
+              ))}
             </TextField>
           </Box>
         </Box>

@@ -1,50 +1,52 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { toast } from "sonner";
+import {
+  useFavAddFavoriteMutation,
+  useFavGetFavoriteIdsQuery,
+  useFavRemoveFavoriteMutation,
+} from "@/redux/api/favoriteApi";
+import { isAdopterRole, useAuthUser } from "./useAuthUser";
 
-//* Mock-backed until the favorites API exists (Phase 3). Stored per browser.
-export type FavoritePet = {
-  id: string;
-  name: string;
-  image: string;
-  breed: string;
-  age: number;
-  location: string;
-};
-
-const KEY = "petfinder:favorites";
-const EVENT = "petfinder:favorites";
-
-const read = (): FavoritePet[] => {
-  try {
-    return JSON.parse(localStorage.getItem(KEY) || "[]");
-  } catch {
-    return [];
-  }
-};
-
+//* API-backed favorites (/favorites). Heart state comes from GET /favorites/ids (one request,
+//* shared by every card through the RTK Query cache). Guests are sent to login.
 export const useFavorites = () => {
-  const [favorites, setFavorites] = useState<FavoritePet[]>([]);
+  const { ready, user } = useAuthUser();
+  const canFavorite = !!user && isAdopterRole(user.role);
+  const { data: ids = [] } = useFavGetFavoriteIdsQuery(undefined, { skip: !ready || !canFavorite });
+  const [add] = useFavAddFavoriteMutation();
+  const [remove] = useFavRemoveFavoriteMutation();
+  const router = useRouter();
+  const pathname = usePathname();
 
-  useEffect(() => {
-    setFavorites(read());
-    const sync = () => setFavorites(read());
-    window.addEventListener(EVENT, sync);
-    return () => window.removeEventListener(EVENT, sync);
-  }, []);
+  const isFavorite = useCallback((id: string) => ids.includes(id), [ids]);
 
-  const toggle = useCallback((pet: FavoritePet) => {
-    const current = read();
-    const next = current.some((p) => p.id === pet.id)
-      ? current.filter((p) => p.id !== pet.id)
-      : [...current, pet];
-    try {
-      localStorage.setItem(KEY, JSON.stringify(next));
-    } catch {}
-    window.dispatchEvent(new Event(EVENT));
-  }, []);
+  const toggle = useCallback(
+    async (pet: { id: string; [key: string]: unknown }) => {
+      if (!user) {
+        toast.info("Log in to save pets");
+        router.push(`/login?redirect=${encodeURIComponent(pathname || "/")}`);
+        return;
+      }
+      if (!canFavorite) {
+        toast.info("Only adopter accounts can save pets");
+        return;
+      }
+      if (pet.id.startsWith("preview-")) {
+        toast.info("Preview pets cannot be saved");
+        return;
+      }
+      try {
+        if (ids.includes(pet.id)) await remove(pet.id).unwrap();
+        else await add(pet.id).unwrap();
+      } catch (err: any) {
+        toast.error(err?.data?.message || "Could not update saved pets");
+      }
+    },
+    [user, canFavorite, ids, add, remove, router, pathname]
+  );
 
-  const isFavorite = (id: string) => favorites.some((p) => p.id === id);
-
-  return { favorites, toggle, isFavorite };
+  return { ids, toggle, isFavorite, canFavorite };
 };

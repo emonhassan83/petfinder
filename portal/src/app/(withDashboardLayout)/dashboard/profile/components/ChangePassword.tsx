@@ -6,20 +6,19 @@ import { FieldValues } from 'react-hook-form';
 import LockResetIcon from '@mui/icons-material/LockReset';
 import { useChangePasswordMutation } from '@/redux/api/authApi';
 import { toast } from 'sonner';
+import { storeUserInfo } from '@/services/auth.services';
 
 const ChangePasswordSection = () => {
   const [passwordData, {isLoading: uploading}] = useChangePasswordMutation();
 
     const handleChangePassword =async (value: FieldValues)=>{
         try {
-          const res = await passwordData(value);
-          // console.log(res);
-          if (res?.data?.message) {
-            toast.success(res?.data?.message);
-          }
+          const res: any = await passwordData(value).unwrap();
+          //* the API revokes other sessions and issues a fresh token pair
+          if (res?.accessToken) storeUserInfo({ accessToken: res.accessToken });
+          toast.success(res?.message || "Password changed");
         } catch (error: any) {
-          toast.error(error.message);
-          console.error(error.message);
+          toast.error(error?.data?.message || "Could not change password");
         }
         
     }

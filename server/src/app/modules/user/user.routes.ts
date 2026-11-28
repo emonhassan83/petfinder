@@ -3,52 +3,37 @@ import { userController } from "./user.controller";
 import validateRequest from "../../middlewares/validateRequest";
 import { userValidation } from "./user.validation";
 import auth from "../../middlewares/auth";
-import { UserRole } from "@prisma/client";
+import { authLimiter } from "../../middlewares/rateLimiter";
+import { ROLES } from "../../../shared/roles";
 
 const router = express.Router();
 
-router.post(
-  "/register",
-  validateRequest(userValidation.createUser),
-  userController.createUser
-);
+router.post("/register", authLimiter, validateRequest(userValidation.createUser), userController.createUser);
 
-router.get(
-  "/users",
-  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN),
-  userController.getAllFromDB
-);
+router.get("/users", auth(...ROLES.ADMINS), validateRequest(userValidation.getUsers), userController.getAllFromDB);
 
-router.get(
-  "/profile",
-  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.USER),
-  userController.getMyProfile
-);
+router.get("/profile", auth(...ROLES.ALL), userController.getMyProfile);
 
 router.patch(
   "/:id/change-role",
-  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  auth(...ROLES.ADMINS),
   validateRequest(userValidation.updateRole),
   userController.changeUserRole
 );
 
 router.patch(
   "/:id/status",
-  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  auth(...ROLES.ADMINS),
   validateRequest(userValidation.updateStatus),
   userController.changeProfileStatus
 );
 
-router.put(
-  "/profile",
-  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.USER),
-  validateRequest(userValidation.updateUser),
-  userController.updateMyProfile
-);
+router.put("/profile", auth(...ROLES.ALL), validateRequest(userValidation.updateUser), userController.updateMyProfile);
 
 router.delete(
-  '/soft-deleted/:id',
-  auth(UserRole.SUPER_ADMIN),
+  "/soft-deleted/:id",
+  auth(...ROLES.ADMINS),
+  validateRequest(userValidation.userIdParam),
   userController.softDelete
 );
 

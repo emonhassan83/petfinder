@@ -1,85 +1,83 @@
-import { UserRole } from "@prisma/client";
+import { PaymentStatus, UserRole } from "@prisma/client";
+import httpStatus from "http-status";
 import prisma from "../../../shared/prisma";
+import ApiError from "../../errors/ApiErrors";
 import { IAuthUser } from "../../interfaces/common";
+import { getListerAnalytics, getPlatformAnalytics } from "./meta.analytics";
 
 const fetchDashboardMetaData = async (user: IAuthUser) => {
-  let metaData;
-
   switch (user?.role) {
     case UserRole.SUPER_ADMIN:
-      metaData = getSuperAdminMetaData();
-      break;
+      return { ...(await getSuperAdminMetaData()), analytics: await getPlatformAnalytics() };
     case UserRole.ADMIN:
-      metaData = getAdminMetaData();
-      break;
+      return { ...(await getAdminMetaData()), analytics: await getPlatformAnalytics() };
     case UserRole.USER:
-      metaData = getUserMetaData(user);
-      break;
+    case UserRole.OWNER:
+    case UserRole.SHELTER:
+    case UserRole.SHELTER_MEMBER:
+      return {
+        ...(await getUserMetaData(user.id)),
+        //* Lister roles also get analytics for their own listings (detail gated by plan)
+        ...(user.role === UserRole.USER ? {} : { listingAnalytics: await getListerAnalytics(user) }),
+      };
     default:
-      throw new Error("Invalid user role!");
+      throw new ApiError(httpStatus.FORBIDDEN, "Invalid user role!");
   }
+};
 
-  return metaData;
+//* Revenue from PAID Payment rows, minor units -> major units. `totalRevenue` is the USD total;
+//* `revenueByCurrency` lists every currency so amounts are never mixed.
+const getRevenue = async (userId?: string) => {
+  const grouped = await prisma.payment.groupBy({
+    by: ["currency"],
+    where: { status: PaymentStatus.PAID, ...(userId ? { userId } : {}) },
+    _sum: { amount: true },
+  });
+  const revenueByCurrency = grouped.map((g) => ({ currency: g.currency, amount: (g._sum.amount ?? 0) / 100 }));
+  const totalRevenue = revenueByCurrency.find((c) => c.currency === "USD")?.amount ?? 0;
+  return { totalRevenue, revenueByCurrency };
 };
 
 const getSuperAdminMetaData = async () => {
-  const userCount = await prisma.user.count();
-  const petCount = await prisma.pet.count();
-  const adoptionCount = await prisma.adoptionRequest.count();
-  const blogCount = await prisma.blog.count();
-  const donationCount = await prisma.donation.count();
+  const [userCount, petCount, adoptionCount, blogCount, donationCount, revenue, barChartData, pieCharData] =
+    await Promise.all([
+      prisma.user.count(),
+      prisma.pet.count(),
+      prisma.adoptionRequest.count(),
+      prisma.blog.count(),
+      prisma.donation.count(),
+      getRevenue(),
+      getBarChartData(),
+      getPieChartData(),
+    ]);
 
-  const totalRevenue = adoptionCount * 180;
-
-  const barChartData = await getBarChartData();
-  const pieCharData = await getPieChartData();
-
-  return {
-    userCount,
-    petCount,
-    adoptionCount,
-    blogCount,
-    donationCount,
-    totalRevenue,
-    barChartData,
-    pieCharData,
-  };
+  return { userCount, petCount, adoptionCount, blogCount, donationCount, ...revenue, barChartData, pieCharData };
 };
 
 const getAdminMetaData = async () => {
-  const adminCount = await prisma.user.count({
-    where: {
-      role: "ADMIN"
-    }
-  });
-  const userCount = await prisma.user.count({
-    where: {
-      role: "USER"
-    }
-  });
-  const petCount = await prisma.pet.count();
-  const popularPetCount = await prisma.pet.count({
-    where: {
-      adoptionRequest: {
-        some: {},
-      },
-    },
-  });
-  const adoptionCount = await prisma.adoptionRequest.count();
-  const blogCount = await prisma.blog.count();
-  const donationCount = await prisma.donation.count();
-
-  const totalRevenue = await prisma.adoptionRequest.count(
-  //   {
-  //   _sum: { amount: true },
-  //   where: {
-  //     status: PaymentStatus.PAID,
-  //   },
-  // }
-) * 180;
-
-  const barChartData = await getBarChartData();
-  const pieCharData = await getPieChartData();
+  const [
+    adminCount,
+    userCount,
+    petCount,
+    popularPetCount,
+    adoptionCount,
+    blogCount,
+    donationCount,
+    revenue,
+    barChartData,
+    pieCharData,
+  ] = await Promise.all([
+    prisma.user.count({ where: { role: UserRole.ADMIN } }),
+    prisma.user.count({ where: { role: UserRole.USER } }),
+    prisma.pet.count(),
+    prisma.pet.count({ where: { adoptionRequest: { some: {} } } }),
+    prisma.adoptionRequest.count(),
+    prisma.blog.count(),
+    prisma.donation.count(),
+    getRevenue(),
+    getBarChartData(),
+    getPieChartData(),
+  ]);
 
   return {
     userCount,
@@ -89,90 +87,45 @@ const getAdminMetaData = async () => {
     adoptionCount,
     blogCount,
     donationCount,
-    totalRevenue,
+    ...revenue,
     barChartData,
     pieCharData,
   };
 };
 
-const getUserMetaData = async (user: IAuthUser) => {
-  const userData = await prisma.user.findUniqueOrThrow({
-    where: {
-      email: user?.email,
-    },
-  });
+const getUserMetaData = async (userId: string) => {
+  const [petCount, adoptionCount, blogCount, donationCount, revenue, barChartData, pieCharData] = await Promise.all([
+    prisma.pet.count(),
+    prisma.adoptionRequest.count({ where: { userId } }),
+    prisma.blog.count({ where: { userId } }),
+    prisma.donation.count({ where: { userId } }),
+    //* What this user has paid (subscriptions, donations)
+    getRevenue(userId),
+    getUserBarChartData(userId),
+    getUserPieChartData(userId),
+  ]);
 
-  const petCount = await prisma.pet.count();
-
-  const adoptionCount = await prisma.adoptionRequest.count({
-    where: {
-      userId: userData.id,
-    },
-  });
-
-  const totalRevenue = await prisma.adoptionRequest.count({
-    where: {
-      userId: userData.id,
-    },
-  }) * 180;
-
-  const blogCount = await prisma.blog.count({
-    where: {
-      userId: userData.id,
-    },
-  });
-
-  const donationCount = await prisma.donation.count({
-    where: {
-      userId: userData.id,
-    },
-  });
-
-  const barChartData = await getUserBarChartData(userData?.id);
-  const pieCharData = await getUserPieChartData(userData?.id);
-
-  return {
-    petCount,
-    adoptionCount,
-    blogCount,
-    donationCount,
-    totalRevenue,
-    barChartData,
-    pieCharData
-  };
+  return { petCount, adoptionCount, blogCount, donationCount, ...revenue, barChartData, pieCharData };
 };
 
 const getBarChartData = async () => {
-  const adoptionCountByMonth: { month: Date; count: bigint }[] =
-    await prisma.$queryRaw`
+  const adoptionCountByMonth: { month: Date; count: number }[] = await prisma.$queryRaw`
         SELECT DATE_TRUNC('month', "createdAt") AS month,
         CAST(COUNT(*) AS INTEGER) AS count
         FROM "adoptionrequests"
         GROUP BY month
         ORDER BY month ASC
     `;
-
   return adoptionCountByMonth;
 };
 
 const getPieChartData = async () => {
-  const adoptionStatusDistribution = await prisma.adoptionRequest.groupBy({
-    by: ["status"],
-    _count: { id: true },
-  });
-
-  const formattedAdoptStatusDistribution =
-  adoptionStatusDistribution.map(({ status, _count }) => ({
-      status,
-      count: Number(_count.id),
-    }));
-
-  return formattedAdoptStatusDistribution;
+  const distribution = await prisma.adoptionRequest.groupBy({ by: ["status"], _count: { id: true } });
+  return distribution.map(({ status, _count }) => ({ status, count: Number(_count.id) }));
 };
 
 const getUserBarChartData = async (userId: string) => {
-  const adoptionCountByMonth: { month: Date; count: bigint }[] =
-    await prisma.$queryRaw`
+  const adoptionCountByMonth: { month: Date; count: number }[] = await prisma.$queryRaw`
         SELECT DATE_TRUNC('month', "createdAt") AS month,
         CAST(COUNT(*) AS INTEGER) AS count
         FROM "adoptionrequests"
@@ -180,26 +133,16 @@ const getUserBarChartData = async (userId: string) => {
         GROUP BY month
         ORDER BY month ASC
     `;
-
   return adoptionCountByMonth;
 };
 
 const getUserPieChartData = async (userId: string) => {
-  const adoptionStatusDistribution = await prisma.adoptionRequest.groupBy({
+  const distribution = await prisma.adoptionRequest.groupBy({
     by: ["status"],
     _count: { id: true },
-    where: {
-      userId,
-    },
+    where: { userId },
   });
-
-  const formattedAdoptStatusDistribution =
-  adoptionStatusDistribution.map(({ status, _count }) => ({
-      status,
-      count: Number(_count.id),
-    }));
-
-  return formattedAdoptStatusDistribution;
+  return distribution.map(({ status, _count }) => ({ status, count: Number(_count.id) }));
 };
 
 export const MetaService = {

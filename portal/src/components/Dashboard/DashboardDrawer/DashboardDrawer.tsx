@@ -14,6 +14,8 @@ import { useGetMyProfileQuery } from "@/redux/api/userApi";
 import AccountMenu from "../AccountMenu/AccountMenu";
 import { ReactNode, useState } from "react";
 import ThemeToggle from "@/components/UI/ThemeToggle";
+import NotificationBell from "../NotificationBell/NotificationBell";
+import { useAuthUser } from "@/hooks/useAuthUser";
 
 const drawerWidth = 240;
 
@@ -25,7 +27,9 @@ export default function DashboardDrawer({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const { data, isLoading } = useGetMyProfileQuery({});
-  // console.log(data);
+  const { user } = useAuthUser();
+  //* The JWT carries no name: use the profile, then the email from the token while it loads
+  const displayName = data?.name || user?.email?.split("@")[0] || "";
 
   const handleDrawerClose = () => {
     setIsClosing(true);
@@ -74,7 +78,7 @@ export default function DashboardDrawer({
             <Box>
               <Typography sx={{marginLeft: "15px"}} variant="body2" component="p" color="text.primary" fontWeight="600">
               
-                Hello, {isLoading ? "Loading..." : data?.name}!
+                {isLoading && !displayName ? "Welcome back" : displayName ? `Hello, ${displayName}!` : "Welcome back"}
               </Typography>
               {/* <Typography
                 variant="body2"
@@ -87,6 +91,7 @@ export default function DashboardDrawer({
             </Box>
             <Stack direction="row" gap={1} alignItems="center">
               <ThemeToggle />
+              {user?.role === "user" && <NotificationBell href="/dashboard/user/notifications" />}
               {/* <Avatar alt={data?.name} src={data?.profilePhoto} /> */}
               <AccountMenu/>
             </Stack>

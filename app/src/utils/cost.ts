@@ -1,5 +1,5 @@
 //* First-year cost estimate (BDT). Mock constants until real pricing data exists.
-import { Size } from "../data/mock";
+import { Size } from "../api/types";
 
 export type FoodTier = "Basic" | "Standard" | "Premium";
 export type VetCare = "Essential" | "Routine" | "Comprehensive";
@@ -32,5 +32,38 @@ export const firstYearCost = (size: Size, food: FoodTier, vet: VetCare, insured:
     { label: "Starter supplies", amount: SUPPLIES_ONE_OFF[size] },
   ];
   if (insured) lines.push({ label: "Pet insurance", amount: INSURANCE_YEARLY[size] });
+  return { lines, total: lines.reduce((sum, l) => sum + l.amount, 0) };
+};
+
+//* API money is in minor units (BDT paisa); 100 per major unit.
+export const formatMinor = (minor: number, currency = "BDT") => {
+  const major = Math.round(minor / 100);
+  return currency === "BDT" ? formatBDT(major) : `${currency} ${major.toLocaleString("en-US")}`;
+};
+
+//* Shape of the public `cost.estimates` setting (major units, currency BDT).
+export type CostEstimates = {
+  setup: Record<string, number>;
+  foodTier: { basic: number; standard: number; premium: number };
+  vetYearly: { routine: number; plus: number };
+  foodMonthly: Record<string, Record<string, number>>;
+  vaccineCost: Record<string, number>;
+};
+
+export type VetPlan = "Routine" | "Plus";
+
+//* True when the setting has numbers for this species and size, so the live calculator can be used.
+export const hasEstimates = (e: CostEstimates | null, species: string, size: string): e is CostEstimates =>
+  !!e && !!e.foodMonthly?.[species]?.[size] && e.setup?.[species] != null && e.vaccineCost?.[species] != null;
+
+export const estimateFirstYear = (e: CostEstimates, species: string, size: string, food: FoodTier, vet: VetPlan, insured: boolean) => {
+  const tier = e.foodTier[food.toLowerCase() as keyof CostEstimates["foodTier"]] ?? 1;
+  const lines: CostLine[] = [
+    { label: "Food (12 months)", amount: Math.round(e.foodMonthly[species][size] * tier * 12) },
+    { label: "Vet care", amount: e.vetYearly[vet.toLowerCase() as keyof CostEstimates["vetYearly"]] },
+    { label: "Vaccinations", amount: e.vaccineCost[species] },
+    { label: "Starter supplies", amount: e.setup[species] },
+  ];
+  if (insured) lines.push({ label: "Pet insurance", amount: INSURANCE_YEARLY[size as Size] ?? INSURANCE_YEARLY.Medium });
   return { lines, total: lines.reduce((sum, l) => sum + l.amount, 0) };
 };

@@ -5,43 +5,58 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors, fonts, needs, radius, shadow } from "../theme";
-import { pets, shelters } from "../data/mock";
+import { fetchFees, fetchPet, startConversation } from "../api/api";
+import { useAsync } from "../hooks/useAsync";
+import { ErrorView, LoadingView } from "../components/Async";
+import { AdoptSheet, ReportSheet } from "../components/ActionSheets";
 import { useAppState } from "../state/AppState";
 import { ageLabel, GenderIcon } from "../components/PetCard";
 import { VisitSheet } from "../components/VisitSheet";
 import { CostSheet } from "../components/CostSheet";
-import { formatBDT } from "../utils/cost";
+import { formatMinor } from "../utils/cost";
 
 const HERO = 340;
 
 export const PetDetailScreen = ({ route, navigation }: any) => {
-  const pet = pets.find((p) => p.id === route.params.id);
-  const { favorites, toggleFavorite, apply, startConversation } = useAppState();
+  const petState = useAsync(() => fetchPet(route.params.id), [route.params.id]);
+  const feesState = useAsync(() => fetchFees(route.params.id).catch(() => null), [route.params.id]);
+  const { favorites, toggleFavorite, requireAuth } = useAppState();
   const insets = useSafeAreaInsets();
   const [expanded, setExpanded] = useState(false);
   const [photo, setPhoto] = useState(0);
   const [visitOpen, setVisitOpen] = useState(false);
   const [costOpen, setCostOpen] = useState(false);
+  const [adoptOpen, setAdoptOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  if (!pet) return <Text style={{ padding: 24 }}>This pet is no longer available.</Text>;
+  const pet = petState.data;
+  if (!pet) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.white, paddingTop: insets.top + 56 }}>
+        {petState.loading ? <LoadingView /> : <ErrorView message={petState.error ?? "This pet is no longer available."} onRetry={petState.reload} />}
+        <Pressable onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Back" style={[styles.back, { top: insets.top + 8, backgroundColor: colors.primary }]}>
+          <Ionicons name="chevron-back" size={24} color={colors.white} />
+        </Pressable>
+      </View>
+    );
+  }
+  const fees = feesState.data;
   const fav = favorites.includes(pet.id);
-  const shelter = shelters.find((s) => s.id === pet.shelterId);
-  const pronoun = pet.gender === "Female" ? "she" : "he";
+  const pronoun = pet.gender === "Female" ? "she" : pet.gender === "Male" ? "he" : "they";
 
-  const onApply = () =>
-    Alert.alert(`Adopt ${pet.name}?`, "The shelter will review your application and message you.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Apply",
-        onPress: () => {
-          if (apply(pet.id)) navigation.navigate("Tabs", { screen: "Applications" });
-          else Alert.alert("Already applied", "You have already applied for this pet.");
-        },
-      },
-    ]);
+  const onApply = () => { if (requireAuth("apply to adopt")) setAdoptOpen(true); };
+  const onVisit = () => { if (requireAuth("book a visit")) setVisitOpen(true); };
+  const onReport = () => { if (requireAuth("report a listing")) setReportOpen(true); };
 
-  const onChat = () => navigation.navigate("Chat", { id: startConversation(pet.id, pet.shelter) });
+  const onChat = async () => {
+    if (!requireAuth("message the shelter")) return;
+    try {
+      navigation.navigate("Chat", { id: await startConversation(pet.id) });
+    } catch (e: any) {
+      Alert.alert("Could not start the chat", e?.message ?? "Please try again.");
+    }
+  };
 
   //* Parallax: the photo moves slower than the sheet and stretches on pull-down
   const heroStyle = {
@@ -60,7 +75,7 @@ export const PetDetailScreen = ({ route, navigation }: any) => {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={[styles.hero, { backgroundColor: pet.tint }, heroStyle]}>
-          <Image source={{ uri: pet.photos[photo] ?? pet.image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} accessibilityLabel={pet.name} />
+          <Image source={pet.photos[photo] ?? pet.image ? { uri: pet.photos[photo] ?? pet.image } : undefined} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} accessibilityLabel={pet.name} />
           <View style={styles.dots}>
             {pet.photos.map((_, i) => (
               <View key={i} style={[styles.dot, i === photo && styles.dotOn]} />
@@ -92,7 +107,7 @@ export const PetDetailScreen = ({ route, navigation }: any) => {
                 <GenderIcon gender={pet.gender} size={24} />
               </View>
               <Text style={styles.meta}>
-                {pet.breed} • {ageLabel(pet.age)} • {pet.size}
+                {[pet.breed, ageLabel(pet.age), pet.size].filter(Boolean).join(" • ")}
               </Text>
             </View>
             <Pressable
@@ -122,7 +137,7 @@ export const PetDetailScreen = ({ route, navigation }: any) => {
           </View>
 
           <Text style={styles.about} numberOfLines={expanded ? undefined : 3}>
-            {pet.about}
+            {pet.about || "No description yet."}
           </Text>
           <Pressable onPress={() => setExpanded((v) => !v)} accessibilityRole="button" hitSlop={8}>
             <Text style={styles.more}>{expanded ? "SEE LESS" : "SEE MORE"}</Text>
@@ -130,15 +145,15 @@ export const PetDetailScreen = ({ route, navigation }: any) => {
 
           <Text style={styles.label}>Published by</Text>
           <View style={styles.publisher}>
-            <View style={[styles.logo, { backgroundColor: shelter?.tint ?? colors.primaryLight }]}>
-              <Ionicons name={shelter?.icon ?? "home"} size={20} color={colors.primaryDark} />
+            <View style={[styles.logo, { backgroundColor: colors.primaryLight }]}>
+              <Ionicons name={pet.shelterId ? "home" : "person"} size={20} color={colors.primaryDark} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.shelterName}>
                 {pet.shelter} {pet.verified && <MaterialCommunityIcons name="check-decagram" size={14} color={colors.male} />}
               </Text>
               <Text style={styles.shelterMeta}>
-                <Ionicons name="location-outline" size={12} /> {pet.distanceKm} km from you
+                <Ionicons name="location-outline" size={12} /> {pet.distanceKm !== undefined ? `${pet.distanceKm} km from you` : pet.location || "Location not listed"}
               </Text>
             </View>
             <Pressable onPress={onChat} accessibilityRole="button" style={styles.outlineBtn}>
@@ -156,31 +171,36 @@ export const PetDetailScreen = ({ route, navigation }: any) => {
             ))}
           </View>
 
-          <Text style={styles.label}>Adoption requirements</Text>
-          <Text style={styles.about}>{pet.requirements}</Text>
+          {pet.requirements ? (
+            <>
+              <Text style={styles.label}>Adoption requirements</Text>
+              <Text style={styles.about}>{pet.requirements}</Text>
+            </>
+          ) : null}
 
-          <Text style={styles.label}>Adoption fees</Text>
-          <View style={styles.fees}>
-            {pet.fees.map((f) => (
-              <View key={f.label} style={styles.feeRow}>
-                <Text style={styles.feeText}>{f.label}</Text>
-                <Text style={styles.feeText}>{f.amount ? formatBDT(f.amount) : "Included"}</Text>
+          {fees && fees.fees.length > 0 && (
+            <>
+              <Text style={styles.label}>Adoption fees</Text>
+              <View style={styles.fees}>
+                {fees.fees.map((f) => (
+                  <View key={f.id} style={styles.feeRow}>
+                    <Text style={styles.feeText}>{f.label}</Text>
+                    <Text style={styles.feeText}>{f.amount ? formatMinor(f.amount, fees.currency) : "Included"}</Text>
+                  </View>
+                ))}
+                <View style={[styles.feeRow, styles.feeTotal]}>
+                  <Text style={styles.feeTotalText}>Total</Text>
+                  <Text style={styles.feeTotalText}>{formatMinor(fees.total, fees.currency)}</Text>
+                </View>
               </View>
-            ))}
-            <View style={[styles.feeRow, styles.feeTotal]}>
-              <Text style={styles.feeTotalText}>Total</Text>
-              <Text style={styles.feeTotalText}>{formatBDT(pet.fees.reduce((sum, f) => sum + f.amount, 0))}</Text>
-            </View>
-          </View>
+            </>
+          )}
           <Pressable onPress={() => setCostOpen(true)} accessibilityRole="button" accessibilityLabel="Estimate first-year cost" style={styles.costLink}>
             <Ionicons name="calculator-outline" size={18} color={colors.primary} />
             <Text style={styles.costLinkText}>First-year cost</Text>
           </Pressable>
 
-          <Pressable
-            onPress={() => Alert.alert("Report listing", "Reporting connects to moderation once the backend is live.")}
-            accessibilityRole="button"
-          >
+          <Pressable onPress={onReport} accessibilityRole="button">
             <Text style={styles.report}>Report this listing</Text>
           </Pressable>
         </View>
@@ -197,7 +217,7 @@ export const PetDetailScreen = ({ route, navigation }: any) => {
       </Pressable>
 
       <View style={[styles.bar, { paddingBottom: insets.bottom + 12 }]}>
-        <Pressable onPress={() => setVisitOpen(true)} accessibilityRole="button" accessibilityLabel="Book a visit" style={styles.visitBtn}>
+        <Pressable onPress={onVisit} accessibilityRole="button" accessibilityLabel="Book a visit" style={styles.visitBtn}>
           <Text style={styles.visitText}>Book a visit</Text>
         </Pressable>
         <Pressable onPress={onApply} accessibilityRole="button" accessibilityLabel={`Adopt ${pet.name}`} style={({ pressed }) => [styles.cta, pressed && { transform: [{ scale: 0.98 }] }]}>
@@ -207,6 +227,8 @@ export const PetDetailScreen = ({ route, navigation }: any) => {
 
       <VisitSheet pet={pet} visible={visitOpen} onClose={() => setVisitOpen(false)} onViewVisits={() => navigation.navigate("Tabs", { screen: "Applications", params: { tab: "visits" } })} />
       <CostSheet pet={pet} visible={costOpen} onClose={() => setCostOpen(false)} />
+      <AdoptSheet pet={pet} visible={adoptOpen} onClose={() => setAdoptOpen(false)} onSubmitted={() => navigation.navigate("Tabs", { screen: "Applications" })} />
+      <ReportSheet pet={pet} visible={reportOpen} onClose={() => setReportOpen(false)} />
     </View>
   );
 };

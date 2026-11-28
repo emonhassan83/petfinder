@@ -55,6 +55,12 @@ export const petApi = baseApi.injectEndpoints({
       ],
     }),
 
+    //* Public: fee breakdown for 'What the fee covers' (minor units)
+    pubGetPetFees: build.query<{ currency: string; total: number; fees: any[] }, string>({
+      query: (petId) => ({ url: `/pets/${petId}/fees`, method: "GET" }),
+      providesTags: (result, error, arg) => [{ type: tagTypes.fee, id: arg }],
+    }),
+
     deletePet: build.mutation({
       query: (id) => ({
         url: `/pets/${id}`,

@@ -1,57 +1,98 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./Text";
 import { BottomSheet, Pill, PrimaryButton } from "./BottomSheet";
+import { ErrorView, LoadingView } from "./Async";
 import { colors, fonts, radius } from "../theme";
-import { Pet, visitSlots } from "../data/mock";
+import { Pet, VisitSlot } from "../api/types";
+import { bookVisit, fetchVisitSlots } from "../api/api";
+import { dateLabel, dayKey, timeLabel } from "../utils/date";
+import { useAsync } from "../hooks/useAsync";
 import { useAppState } from "../state/AppState";
 
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
-//* "Book a visit": next 14 days + time slots; confirm stores the visit in app state.
+//* "Book a visit": open slots from GET /pets/:id/visit-slots grouped by day (shelter timezone); confirm POSTs /visits.
 export const VisitSheet = ({ pet, visible, onClose, onViewVisits }: { pet: Pet; visible: boolean; onClose: () => void; onViewVisits: () => void }) => {
-  const { bookVisit } = useAppState();
-  const days = useMemo(
-    () => Array.from({ length: 14 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() + i + 1); return d; }),
-    [visible]
-  );
-  const [date, setDate] = useState<string | null>(null);
-  const [time, setTime] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
+  const { requireAuth } = useAppState();
+  const { data, loading, error, reload } = useAsync(() => (visible ? fetchVisitSlots(pet.id) : Promise.resolve(null)), [visible, pet.id]);
+  const [day, setDay] = useState<string | null>(null);
+  const [slot, setSlot] = useState<VisitSlot | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [done, setDone] = useState<{ date: string; time: string } | null>(null);
 
-  const close = () => { setDate(null); setTime(null); setDone(false); onClose(); };
-  const confirm = () => { if (date && time) { bookVisit(pet.id, date, time); setDone(true); } };
+  const tz = data?.timezone ?? "UTC";
+  const days = useMemo(() => {
+    const map = new Map<string, VisitSlot[]>();
+    (data?.slots ?? []).filter((s) => s.remaining > 0).forEach((s) => {
+      const k = dayKey(s.startsAt, tz);
+      map.set(k, [...(map.get(k) ?? []), s]);
+    });
+    return [...map.entries()];
+  }, [data, tz]);
+
+  useEffect(() => {
+    if (days.length && !days.some(([k]) => k === day)) setDay(days[0][0]);
+  }, [days, day]);
+
+  const close = () => { setSlot(null); setDone(null); setProblem(null); onClose(); };
+
+  const confirm = async () => {
+    if (!slot || !requireAuth("book a visit")) return;
+    setBusy(true);
+    setProblem(null);
+    try {
+      await bookVisit(pet.id, slot);
+      setDone({ date: dateLabel(slot.startsAt, tz), time: timeLabel(slot.startsAt, tz) });
+    } catch (e: any) {
+      setProblem(e?.message ?? "Could not book this visit.");
+      reload();
+      setSlot(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const slots = days.find(([k]) => k === day)?.[1] ?? [];
 
   return (
     <BottomSheet visible={visible} title={done ? "Visit requested" : `Visit ${pet.name}`} onClose={close}>
       {done ? (
         <View style={styles.done}>
           <View style={styles.check}><Ionicons name="checkmark" size={32} color={colors.white} /></View>
-          <Text style={styles.doneText}>{pet.shelter} will confirm your visit on {date} at {time}.</Text>
+          <Text style={styles.doneText}>{pet.shelter} will confirm your visit on {done.date} at {done.time}.</Text>
           <PrimaryButton label="View my visits" onPress={() => { close(); onViewVisits(); }} />
+        </View>
+      ) : loading ? (
+        <LoadingView />
+      ) : error ? (
+        <ErrorView message={error} onRetry={reload} />
+      ) : days.length === 0 ? (
+        <View style={styles.done}>
+          <Text style={styles.doneText}>No open visit times in the next two weeks. Message {pet.shelter} to arrange one.</Text>
         </View>
       ) : (
         <>
           <Text style={styles.label}>Pick a day</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
-            {days.map((d) => {
-              const k = iso(d), on = date === k;
+            {days.map(([k, list]) => {
+              const on = day === k;
+              const [dow, rest] = dateLabel(list[0].startsAt, tz).split(", ");
               return (
-                <Pressable key={k} onPress={() => setDate(k)} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={d.toDateString()} style={[styles.day, on && styles.dayOn]}>
-                  <Text style={[styles.dow, on && { color: colors.white }]}>{DAYS[d.getDay()]}</Text>
-                  <Text style={[styles.dom, on && { color: colors.white }]}>{d.getDate()}</Text>
+                <Pressable key={k} onPress={() => { setDay(k); setSlot(null); }} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={dateLabel(list[0].startsAt, tz)} style={[styles.day, on && styles.dayOn]}>
+                  <Text style={[styles.dow, on && { color: colors.white }]}>{dow}</Text>
+                  <Text style={[styles.dom, on && { color: colors.white }]}>{(rest ?? "").split(" ").pop()}</Text>
                 </Pressable>
               );
             })}
           </ScrollView>
           <Text style={styles.label}>Pick a time</Text>
           <View style={styles.slots}>
-            {visitSlots.map((s) => <Pill key={s} label={s} on={time === s} onPress={() => setTime(s)} />)}
+            {slots.map((s) => <Pill key={s.startsAt} label={timeLabel(s.startsAt, tz)} on={slot?.startsAt === s.startsAt} onPress={() => setSlot(s)} />)}
           </View>
-          <Text style={styles.note}>Free meet-and-greet, no deposit needed.</Text>
-          <PrimaryButton label="Confirm visit" onPress={confirm} disabled={!date || !time} />
+          {problem ? <Text style={styles.problem} accessibilityRole="alert">{problem}</Text> : null}
+          <Text style={styles.note}>Free meet-and-greet, no deposit needed. Times are in the shelter's timezone ({tz}).</Text>
+          <PrimaryButton label={busy ? "Booking..." : "Confirm visit"} onPress={confirm} disabled={!slot || busy} />
         </>
       )}
     </BottomSheet>
@@ -66,6 +107,7 @@ const styles = StyleSheet.create({
   dom: { color: colors.ink, fontSize: 20, fontFamily: fonts.heading },
   slots: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   note: { color: colors.slate, fontSize: 12, marginTop: 14 },
+  problem: { color: colors.danger, marginTop: 12, fontSize: 13 },
   done: { alignItems: "center", gap: 12, paddingVertical: 12 },
   check: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.success, alignItems: "center", justifyContent: "center" },
   doneText: { color: colors.ink, textAlign: "center", fontSize: 15, lineHeight: 22 },

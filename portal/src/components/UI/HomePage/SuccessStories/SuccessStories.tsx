@@ -6,13 +6,26 @@ import Image from "next/image";
 import Link from "next/link";
 import SectionHeading from "@/components/Shared/SectionHeading";
 import BeforeAfter from "../../BeforeAfter";
+import { useEffect, useState } from "react";
 import { successStories } from "@/mock/stories";
+import { UiStory, fetchPublic, normalizeStory } from "@/lib/apiData";
 
 const formatDate = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
 
-//* Home teaser: featured before/after story plus two story cards. Full lookbook lives at /stories (step 6).
+//* Home teaser: featured before/after story plus two story cards. Full lookbook lives at /stories.
+//* Published stories from GET /success-stories; preview stories only when the API is unreachable.
 const SuccessStories = () => {
-  const [featured, ...others] = successStories;
+  const [stories, setStories] = useState<UiStory[] | null>(null);
+
+  useEffect(() => {
+    fetchPublic<any[]>("/success-stories?limit=3").then((res) => {
+      if (res === "offline") setStories(successStories);
+      else setStories((res?.data ?? []).map(normalizeStory));
+    });
+  }, []);
+
+  if (!stories?.length) return null;
+  const [featured, ...others] = stories;
   const rest = others.slice(0, 2);
 
   return (
@@ -25,10 +38,14 @@ const SuccessStories = () => {
           <Box sx={{ bgcolor: "background.paper", borderRadius: "var(--pf-radius-card)", p: { xs: 2, md: 2.5 }, border: "1px solid", borderColor: "divider" }}>
             {featured.before && featured.after ? (
               <BeforeAfter before={featured.before} after={featured.after} alt={featured.petName} ratio="16 / 11" />
-            ) : null}
+            ) : (
+              <Box sx={{ position: "relative", aspectRatio: "16 / 11", borderRadius: "var(--pf-radius-card)", overflow: "hidden" }}>
+                <Image src={featured.image} alt={featured.petName} fill sizes="(max-width: 900px) 100vw, 55vw" style={{ objectFit: "cover" }} />
+              </Box>
+            )}
             <Box sx={{ px: { xs: 1, md: 1.5 }, pt: 2.5, pb: 1 }}>
               <Typography variant="overline" sx={{ color: "text.secondary" }}>
-                {featured.petName} · adopted {formatDate(featured.adoptedOn)}
+                {featured.petName}{featured.adoptedOn ? ` · adopted ${formatDate(featured.adoptedOn)}` : ""}
               </Typography>
               <Typography variant="h4" component="h3" sx={{ fontSize: { xs: 24, md: 30 }, mt: 0.5 }}>
                 {featured.title}
@@ -36,9 +53,11 @@ const SuccessStories = () => {
               <Typography color="text.secondary" sx={{ mt: 1.5, lineHeight: 1.7 }}>
                 {featured.excerpt}
               </Typography>
-              <Typography sx={{ mt: 2, fontWeight: 700 }}>
-                {featured.family}, {featured.city}
-              </Typography>
+              {(featured.family || featured.city) && (
+                <Typography sx={{ mt: 2, fontWeight: 700 }}>
+                  {[featured.family, featured.city].filter(Boolean).join(", ")}
+                </Typography>
+              )}
             </Box>
           </Box>
 
@@ -51,7 +70,7 @@ const SuccessStories = () => {
                 </Box>
                 <Box>
                   <Typography variant="overline" sx={{ color: "text.secondary", lineHeight: 1.6 }}>
-                    {s.petName} · {s.city}
+                    {[s.petName, s.city].filter(Boolean).join(" · ")}
                   </Typography>
                   <Typography variant="h6" component="h3" sx={{ lineHeight: 1.3 }}>
                     {s.title}

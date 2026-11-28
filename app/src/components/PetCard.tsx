@@ -4,19 +4,20 @@ import { Text } from "./Text";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, fonts, radius, shadow } from "../theme";
-import { Pet } from "../data/mock";
+import { Pet } from "../api/types";
 import { useAppState } from "../state/AppState";
 
-export const GenderIcon = ({ gender, size = 18 }: { gender: Pet["gender"]; size?: number }) => (
-  <Ionicons
-    name={gender === "Male" ? "male" : "female"}
-    size={size}
-    color={gender === "Male" ? colors.male : colors.female}
-    accessibilityLabel={gender}
-  />
-);
+export const GenderIcon = ({ gender, size = 18 }: { gender: Pet["gender"]; size?: number }) =>
+  gender === "Unknown" ? null : (
+    <Ionicons
+      name={gender === "Male" ? "male" : "female"}
+      size={size}
+      color={gender === "Male" ? colors.male : colors.female}
+      accessibilityLabel={gender}
+    />
+  );
 
-export const ageLabel = (age: number) => `${age} ${age === 1 ? "year" : "years"}`;
+export const ageLabel = (age: number) => (age < 1 ? "Under 1 year" : `${age} ${age === 1 ? "year" : "years"}`);
 
 //* Photo card with an overlapping white info panel (design: "Needing your affection").
 export const PetCard = ({ pet, onPress, width }: { pet: Pet; onPress: () => void; width?: number }) => {
@@ -45,7 +46,7 @@ export const PetCard = ({ pet, onPress, width }: { pet: Pet; onPress: () => void
         accessibilityLabel={`View ${pet.name}`}
       >
         <View style={[styles.photo, { backgroundColor: pet.tint }]}>
-          <Image source={{ uri: pet.image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={250} accessibilityLabel={pet.name} />
+          <Image source={pet.image ? { uri: pet.image } : undefined} style={StyleSheet.absoluteFill} contentFit="cover" transition={250} accessibilityLabel={pet.name} />
         </View>
         <View style={[styles.info, shadow]}>
           <View style={{ flex: 1 }}>
@@ -56,7 +57,7 @@ export const PetCard = ({ pet, onPress, width }: { pet: Pet; onPress: () => void
               <GenderIcon gender={pet.gender} />
             </View>
             <Text style={styles.meta} numberOfLines={1}>
-              {pet.breed} • {ageLabel(pet.age)}
+              {[pet.breed, ageLabel(pet.age)].filter(Boolean).join(" • ")}
             </Text>
           </View>
           <Pressable

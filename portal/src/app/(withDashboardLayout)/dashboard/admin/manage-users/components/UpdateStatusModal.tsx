@@ -1,13 +1,7 @@
-import PetFrom from "@/components/Forms/PetForm";
-import PetInput from "@/components/Forms/PetInput";
-import PetSelectField from "@/components/Forms/PetSelectField";
-import PetModal from "@/components/Shared/PetModal/PetModal";
-import { useChangeProfileStatusMutation } from "@/redux/api/userApi";
-import { Button, Grid } from "@mui/material";
-import { FieldValues } from "react-hook-form";
-import { toast } from "sonner";
-
-const statusOptions = ["ACTIVE", "BLOCKED", "DELETED"];
+import { useEffect, useState } from "react";
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, TextField, Typography } from "@mui/material";
+import { useAdminChangeUserStatusMutation } from "@/redux/api/userApi";
+import { runMutation } from "@/utils/dashboardHelpers";
 
 type TProps = {
   open: boolean;
@@ -15,52 +9,41 @@ type TProps = {
   data: any;
 };
 
+//* Suspend (BLOCKED) or reactivate (ACTIVE). Deleting is a separate confirmed action on the page.
 const UpdateUserStatusModal = ({ open, setOpen, data }: TProps) => {
-  const [changeProfileStatus] = useChangeProfileStatusMutation();
+  const [changeStatus, { isLoading }] = useAdminChangeUserStatusMutation();
+  const [status, setStatus] = useState("ACTIVE");
 
-  const handleFormSubmit = async (values: FieldValues) => {
-    const { status } = values;
+  useEffect(() => {
+    if (data?.status) setStatus(data.status);
+  }, [data]);
 
-    try {
-      const userData = {
-        id: data.id,
-        status,
-      };
-
-      const res = await changeProfileStatus(userData);
-      // console.log(res);
-      if (res?.data?.id) {
-        toast.success("User status updated successfully!");
-        setOpen(false);
-      }
-    } catch (error: any) {
-      toast.error(error.message);
-      console.error(error.message);
-    }
-    
-  };
-
-  const defaultValues = {
-    status: data?.status,
+  const submit = async () => {
+    const r = await runMutation(changeStatus({ id: data.id, status }), status === "BLOCKED" ? "User blocked." : "User activated.");
+    if (r.ok) setOpen(false);
   };
 
   return (
-    <PetModal maxWidth="xs" open={open} setOpen={setOpen} title="Update User Status">
-      <PetFrom onSubmit={handleFormSubmit} defaultValues={defaultValues}>
-        <Grid container spacing={2}>
-        <Grid item xs={12} sm={12}>
-            <PetSelectField
-              items={statusOptions}
-              name="status"
-              label="Status"
-              sx={{ mb: 2}}
-            />
-          </Grid>
-        </Grid>
-
-        <Button type="submit">Update Status</Button>
-      </PetFrom>
-    </PetModal>
+    <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs">
+      <DialogTitle>Account status</DialogTitle>
+      <DialogContent>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          {data?.name} ({data?.email}). Blocking signs the user out everywhere.
+        </Typography>
+        <TextField select fullWidth label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <MenuItem value="ACTIVE">ACTIVE</MenuItem>
+          <MenuItem value="BLOCKED">BLOCKED</MenuItem>
+        </TextField>
+      </DialogContent>
+      <DialogActions sx={{ p: 2 }}>
+        <Button variant="text" color="inherit" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+        <Button disabled={isLoading || status === data?.status} onClick={submit}>
+          Update status
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 

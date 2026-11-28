@@ -1,133 +1,176 @@
 "use client";
 
-import { useDeleteAdoptionRequestMutation, useGetAllAdoptionRequestsQuery } from "@/redux/api/adoptionApi";
-import { Box, IconButton } from "@mui/material";
+import { useState } from "react";
+import {
+  useAdminDeleteAdoptionRequestMutation,
+  useAdminGetAdoptionRequestsQuery,
+  useAdminGetDisputesQuery,
+  useAdminResolveDisputeMutation,
+} from "@/redux/api/inboxApi";
+import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Tab, Tabs, Tooltip, Typography } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import Image from "next/image";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
-import { useState } from "react";
+import GavelIcon from "@mui/icons-material/Gavel";
 import UpdateAdoptStatusModal from "./components/UpdateAdoptModal";
-import { toast } from "sonner";
-import LoadingPage from "@/components/Shared/Loader/LoadingPage";
 import Meta from "@/components/Meta/MetaData";
+import Thumb from "@/components/Dashboard/Common/Thumb";
+import QueryState from "@/components/Dashboard/Common/QueryState";
+import ReasonDialog from "@/components/Shared/ReasonDialog";
+import { fmtDate, runMutation } from "@/utils/dashboardHelpers";
+
+const statusColor: Record<string, "default" | "success" | "warning" | "error" | "primary"> = {
+  PENDING: "warning",
+  APPROVED: "success",
+  COMPLETED: "primary",
+  REJECTED: "error",
+  WITHDRAWN: "default",
+};
 
 const ManageAdoptionPage = () => {
+  const [tab, setTab] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedPet, setSelectedPet] = useState(null);
-  const { data, isLoading } = useGetAllAdoptionRequestsQuery({});
-  const [deleteAdoptionRequest] = useDeleteAdoptionRequestMutation();
-  // console.log(data);
+  const [selected, setSelected] = useState<any>(null);
+  const [toDelete, setToDelete] = useState<any>(null);
+  const [toResolve, setToResolve] = useState<any>(null);
 
-  const handleEditClick = (pet: any) => {
-    setSelectedPet(pet);
-    setIsModalOpen(true);
-  };
+  const all = useAdminGetAdoptionRequestsQuery({});
+  const disputes = useAdminGetDisputesQuery({});
+  const [deleteRequest, { isLoading: deleting }] = useAdminDeleteAdoptionRequestMutation();
+  const [resolveDispute] = useAdminResolveDisputeMutation();
 
-  const handleAdoptDelete = async(id: any) =>{
-    try {
-      const res = await deleteAdoptionRequest(id);
-      // console.log(res);
-      if (res?.data?.id) {
-        toast.success("Adoption deleted successfully!");
-      }
-      
-    } catch (error: any) {
-      toast.error(error.message);
-      console.error(error.message);
-    }
-  }
+  const base: GridColDef[] = [
+    { field: "user", headerName: "Applicant", flex: 1, minWidth: 140, valueGetter: ({ row }) => row.user?.name ?? "Unknown" },
+    { field: "email", headerName: "Email", flex: 1.2, minWidth: 180, valueGetter: ({ row }) => row.user?.email ?? "" },
+    { field: "pet", headerName: "Pet", flex: 1, minWidth: 120, valueGetter: ({ row }) => row.pet?.name ?? "Unknown" },
+    { field: "image", headerName: "", width: 70, sortable: false, renderCell: ({ row }) => <Thumb src={row.pet?.image} alt={row.pet?.name} /> },
+    {
+      field: "status",
+      headerName: "Status",
+      width: 120,
+      renderCell: ({ row }) => <Chip size="small" label={row.status} color={statusColor[row.status] ?? "default"} />,
+    },
+    { field: "createdAt", headerName: "Applied", width: 110, valueGetter: ({ row }) => fmtDate(row.createdAt) },
+  ];
 
-  const columns: GridColDef[] = [
-    {
-      field: "user.name",
-      headerName: "Req. User",
-      flex: 1,
-      renderCell: ({ row }) => {
-        return <Box>{row.user ? row.user.name : "Unknown"}</Box>;
-      },
-    },
-    {
-      field: "user.email",
-      headerName: "User Email",
-      flex: 1,
-      renderCell: ({ row }) => {
-        return <Box>{row.user ? row.user.email : "Unknown"}</Box>;
-      },
-    },
-    {
-      field: "pet.name",
-      headerName: "Pet Name",
-      flex: 1,
-      renderCell: ({ row }) => {
-        return <Box>{row.pet ? row.pet.name : "Unknown"}</Box>;
-      },
-    },
-    {
-      field: "image",
-      headerName: "Pet Image",
-      flex: 1,
-      renderCell: ({ row }) => {
-        return (
-          <Box>
-            <Image src={row.pet.image} width={40} height={40} alt="Pet Image" />
-          </Box>
-        );
-      },
-    },
-    { field: "animalSleep", headerName: "Animal Sleep", flex: 1 },
-    { field: "status", headerName: "Status", flex: 1 },
+  const allColumns: GridColDef[] = [
+    ...base,
     {
       field: "action",
       headerName: "Action",
-      flex: 1,
+      width: 120,
+      sortable: false,
       headerAlign: "center",
       align: "center",
-      renderCell: ({ row }) => {
-        return (
-          <Box display="flex" gap={1}>
-            <IconButton onClick={() => handleEditClick(row)} color="primary" aria-label="delete">
+      renderCell: ({ row }) => (
+        <Box display="flex" gap={0.5}>
+          <Tooltip title="Update status">
+            <IconButton
+              color="primary"
+              aria-label="Update status"
+              onClick={() => {
+                setSelected(row);
+                setIsModalOpen(true);
+              }}
+            >
               <EditIcon />
             </IconButton>
-            <IconButton onClick={() => handleAdoptDelete(row?.id)} color="primary" aria-label="delete">
+          </Tooltip>
+          <Tooltip title="Delete">
+            <IconButton color="primary" aria-label="Delete application" onClick={() => setToDelete(row)}>
               <DeleteIcon />
             </IconButton>
-          </Box>
-        );
-      },
+          </Tooltip>
+        </Box>
+      ),
     },
   ];
 
+  const disputeColumns: GridColDef[] = [
+    ...base.slice(0, 4),
+    { field: "disputeReason", headerName: "Dispute reason", flex: 1.5, minWidth: 200 },
+    { field: "disputedAt", headerName: "Raised", width: 110, valueGetter: ({ row }) => fmtDate(row.disputedAt) },
+    {
+      field: "action",
+      headerName: "Action",
+      width: 120,
+      sortable: false,
+      headerAlign: "center",
+      align: "center",
+      renderCell: ({ row }) => (
+        <Tooltip title="Resolve dispute">
+          <IconButton color="primary" aria-label="Resolve dispute" onClick={() => setToResolve(row)}>
+            <GavelIcon />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
+  ];
+
+  const gridProps = {
+    autoHeight: true,
+    pageSizeOptions: [10, 25, 50],
+    initialState: { pagination: { paginationModel: { pageSize: 10, page: 0 } } },
+    disableRowSelectionOnClick: true,
+  };
+
   return (
     <>
-    <Meta
-        title="Manager Adoption | Petfinder - Pet Adoption Platform & Management System"
-        description="This is the admin dashboard of Petfinder where admin can manage their manage adoption like delete and update and more."
+      <Meta title="Adoption Requests | Petfinder" description="Admin dashboard: adoption applications and disputes." />
+
+      <UpdateAdoptStatusModal open={isModalOpen} setOpen={setIsModalOpen} data={selected} />
+
+      <ReasonDialog
+        open={!!toResolve}
+        title="Resolve dispute"
+        onClose={() => setToResolve(null)}
+        onConfirm={async (note) => {
+          const r = await runMutation(resolveDispute({ id: toResolve.id, note }), "Dispute resolved.");
+          if (r.ok) setToResolve(null);
+        }}
       />
 
-    <UpdateAdoptStatusModal
-        open={isModalOpen}
-        setOpen={setIsModalOpen}
-        data={selectedPet}
-      />
-    <Box>
-      {!isLoading ? (
-        <Box my={2}>
-          <DataGrid
-            rows={data ?? []}
-            columns={columns}
-            initialState={{
-              pagination: {
-                paginationModel: { page: 0, pageSize: 5 },
-              },
+      <Dialog open={!!toDelete} onClose={() => setToDelete(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Delete application?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            The application from {toDelete?.user?.name} for {toDelete?.pet?.name} will be removed.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button variant="text" color="inherit" onClick={() => setToDelete(null)}>
+            Cancel
+          </Button>
+          <Button
+            color="error"
+            disabled={deleting}
+            onClick={async () => {
+              const r = await runMutation(deleteRequest(toDelete.id), "Application deleted.");
+              if (r.ok) setToDelete(null);
             }}
-            pageSizeOptions={[5, 10]}
-          />
-        </Box>
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Typography variant="h4" sx={{ mb: 2 }}>
+        Adoption requests
+      </Typography>
+      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
+        <Tab label={`All requests (${all.data?.meta?.total ?? 0})`} />
+        <Tab label={`Disputes (${disputes.data?.meta?.total ?? 0})`} />
+      </Tabs>
+
+      {tab === 0 ? (
+        <QueryState isLoading={all.isLoading} error={all.error}>
+          <DataGrid rows={all.data?.items ?? []} columns={allColumns} {...gridProps} />
+        </QueryState>
       ) : (
-        <LoadingPage />
+        <QueryState isLoading={disputes.isLoading} error={disputes.error}>
+          <DataGrid rows={disputes.data?.items ?? []} columns={disputeColumns} {...gridProps} />
+        </QueryState>
       )}
-    </Box>
     </>
   );
 };

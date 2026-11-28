@@ -25,13 +25,19 @@ const UpdateBlogModal = ({ open, setOpen, data }: TProps) => {
       const blogData = {
         id: data.id,
         ...values,
-        like: Number(values.like),
+        like: Number(values.like) || 0,
+        tags: Array.isArray(values.tags)
+          ? values.tags
+          : String(values.tags ?? "")
+              .split(",")
+              .map((t: string) => t.trim())
+              .filter(Boolean),
       };
       
       const res = await updateBlog(blogData);
     //   console.log(res);
 
-      if (res.data.id) {
+      if (res?.data?.id) {
         toast.success("Blog updated successfully!");
         setOpen(false);
       }

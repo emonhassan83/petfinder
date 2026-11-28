@@ -2,8 +2,10 @@
 
 import PetFrom from "@/components/Forms/PetForm";
 import PetInput from "@/components/Forms/PetInput";
-import { userLogin } from "@/services/actions/loginUsers";
-import { storeUserInfo } from "@/services/auth.services";
+import { dashboardPathForRole, userLogin } from "@/services/actions/loginUsers";
+import { getNewAccessToken, storeUserInfo } from "@/services/auth.services";
+import { decodedToken } from "@/utils/jwt";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Box, Button, Grid, Stack, Typography } from "@mui/material";
 import Link from "next/link";
@@ -11,23 +13,31 @@ import { FieldValues } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import LoginIcon from "@mui/icons-material/Login";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ForgetPasswordModal from "./components/ForgetPasswordModal";
 import AuthAside from "@/components/Shared/AuthAside";
 import Meta from "@/components/Meta/MetaData";
 
+//* Seeded development accounts (server/prisma/seed.ts)
 const demoCredentials = [
   {
     role: "Admin",
-    email: "alice@example.com",
-    password: "user123",
+    email: "admin@petfinder.test",
+    password: "admin123",
   },
   {
-    role: "User",
-    email: "emily@example.com",
-    password: "user123",
+    role: "Shelter",
+    email: "shelter@petfinder.test",
+    password: "shelter123",
   },
 ];
+
+//* Only same-site relative paths are accepted as a post-login target (no "//host" or schemes)
+const safeRedirect = () => {
+  if (typeof window === "undefined") return null;
+  const target = new URLSearchParams(window.location.search).get("redirect");
+  return target && /^\/(?!\/)[\w\-/]*$/.test(target) ? target : null;
+};
 
 const validationSchema = z.object({
   email: z.string().email("Please enter a valid email address!"),
@@ -40,22 +50,41 @@ const LoginPage = () => {
     password: "",
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const router = useRouter();
+
+  //* Bounced here from a dashboard (expired access token)? Try the refresh cookie once first.
+  useEffect(() => {
+    const target = safeRedirect();
+    if (!target?.startsWith("/dashboard")) return;
+    let active = true;
+    getNewAccessToken().then((token) => {
+      if (!active || !token) return;
+      storeUserInfo({ accessToken: token });
+      router.replace(target);
+    });
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   const handleLogin = async (values: FieldValues) => {
-    // console.log("Form Submitted:", values);
     try {
       const res = await userLogin(values);
-      console.log(res);
       if (res?.data?.accessToken) {
         toast.success(res?.message);
-        storeUserInfo({ accessToken: res?.data?.accessToken });
-        // router.push("/dashboard");
+        storeUserInfo({ accessToken: res.data.accessToken });
+        const role = (decodedToken(res.data.accessToken) as { role?: string }).role;
+        const home = dashboardPathForRole(role);
+        const target = safeRedirect();
+        //* a redirect into another role's dashboard would bounce anyway; use the role home then
+        const crossRole = target?.startsWith("/dashboard/") && !target.startsWith(home) && target !== "/dashboard/profile";
+        router.push(target && !crossRole ? target : home);
+        router.refresh();
       } else {
-        toast.error(res?.message);
+        toast.error(res?.message || "Login failed");
       }
     } catch (err: any) {
-      toast.error(err.message);
-      console.error(err.message);
+      toast.error(err?.message || "Could not reach the server");
     }
   };
 

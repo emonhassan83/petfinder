@@ -4,15 +4,16 @@ import sendResponse from "../../../shared/sendResponse";
 import { userService } from "./user.service";
 import pick from "../../../shared/pick";
 import { userFilterableFields } from "./user.constant";
-import { RequestWithUser } from "../../interfaces";
+import { setRefreshCookie } from "../auth/auth.token";
 
 const createUser = catchAsync(async (req, res) => {
-  const result = await userService.createUser(req.body);
+  const { user, session } = await userService.createUser(req.body, { userAgent: req.get("user-agent"), ip: req.ip });
+  setRefreshCookie(res, session.refreshToken, session.refreshExpiresAt);
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
     message: "User registered successfully!",
-    data: result,
+    data: { ...user, accessToken: session.accessToken, refreshToken: session.refreshToken },
   });
 });
 
@@ -32,7 +33,7 @@ const getAllFromDB = catchAsync(async (req, res) => {
 });
 
 const getMyProfile = catchAsync(async (req, res) => {
-  const result = await userService.getMyProfileFromDB((req as RequestWithUser)?.user);
+  const result = await userService.getMyProfileFromDB(req.user!);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -43,7 +44,7 @@ const getMyProfile = catchAsync(async (req, res) => {
 });
 
 const updateMyProfile = catchAsync(async (req, res) => {
-  const result = await userService.updateProfileIntoDB((req as RequestWithUser)?.user, req.body);
+  const result = await userService.updateProfileIntoDB(req.user!, req.body);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -54,8 +55,7 @@ const updateMyProfile = catchAsync(async (req, res) => {
 });
 
 const changeUserRole = catchAsync(async (req, res) => {
-  const { id } = req.params;
-  const result = await userService.changeUserRole(id, req.body);
+  const result = await userService.changeUserRole(req.user!, req.params.id, req.body.role, req.ip);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -66,8 +66,7 @@ const changeUserRole = catchAsync(async (req, res) => {
 });
 
 const changeProfileStatus = catchAsync(async (req, res) => {
-  const { id } = req.params;
-  const result = await userService.changeUserStatus(id, req.body);
+  const result = await userService.changeUserStatus(req.user!, req.params.id, req.body.status, req.ip);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -78,8 +77,7 @@ const changeProfileStatus = catchAsync(async (req, res) => {
 });
 
 const softDelete = catchAsync(async (req, res) => {
-  const { id } = req.params;
-  const result = await userService.softDelete(id);
+  const result = await userService.softDelete(req.user!, req.params.id, req.ip);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -96,5 +94,5 @@ export const userController = {
   updateMyProfile,
   changeUserRole,
   changeProfileStatus,
-  softDelete
+  softDelete,
 };

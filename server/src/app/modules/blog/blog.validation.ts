@@ -1,61 +1,49 @@
+import { BlogStatus } from "@prisma/client";
 import { z } from "zod";
+import { idParams, paginationQuery } from "../../../shared/validation";
+import { blogSortableFields } from "./blog.constant";
 
 const createBlogSchema = z.object({
   body: z.object({
-    userId: z.string({
-      error: "User id is required!",
-    }),
-    title: z.string({
-      error: "Blog title is required!",
-    }),
-    description: z.string({
-      error: "Blog description is required!",
-    }),
-    image: z.string({
-      error: "Blog image is required!",
-    }),
-    reference: z.string({
-      error: "Blog reference is required!",
-    }),
-    tags: z.array(z.string({
-      error: "Blog tags is required!",
-    })),
-    category: z.string({
-      error: "Blog category is required!",
-    })
+    title: z.string({ error: "Blog title is required!" }).trim().min(1).max(200),
+    description: z.string({ error: "Blog description is required!" }).trim().min(1).max(20000),
+    image: z.string({ error: "Blog image is required!" }).trim().min(1).max(2048),
+    reference: z.string({ error: "Blog reference is required!" }).trim().max(500),
+    tags: z.array(z.string().trim().min(1).max(40)).max(20),
+    category: z.string({ error: "Blog category is required!" }).trim().min(1).max(60),
   }),
 });
 
 const updateBlogSchema = z.object({
+  params: idParams("blogId"),
   body: z.object({
-    title: z.string({
-      error: "Blog title is required!",
-    }).optional(),
-    description: z.string({
-      error: "Blog description is required!",
-    }).optional(),
-    image: z.string({
-      error: "Blog image is required!",
-    }).optional(),
-    reference: z.string({
-      error: "Blog reference is required!",
-    }).optional(),
-    tags: z.array(z.string({
-      error: "Blog tags is required!",
-    })).optional(),
-    category: z.string({
-      error: "Blog category is required!",
-    }).optional(),
-    status: z.string({
-      error: "Blog status is required!",
-    }).optional(),
-    like: z.number({
-      error: "Blog views is required!",
-    }).optional(),
+    title: z.string().trim().min(1).max(200).optional(),
+    description: z.string().trim().min(1).max(20000).optional(),
+    image: z.string().trim().min(1).max(2048).optional(),
+    reference: z.string().trim().max(500).optional(),
+    tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
+    category: z.string().trim().min(1).max(60).optional(),
+    //* Only admins may change status (ignored for authors)
+    status: z.enum(BlogStatus).optional(),
+    like: z.number().int().min(0).optional(),
   }),
 });
+
+const listQuery = z.object({
+  query: z.object({
+    ...paginationQuery(blogSortableFields),
+    title: z.string().trim().max(200).optional(),
+    category: z.string().trim().max(60).optional(),
+    status: z.enum(BlogStatus).optional(),
+    tags: z.string().trim().max(40).optional(),
+  }),
+});
+
+const blogIdParam = z.object({ params: idParams("blogId") });
 
 export const blogValidation = {
   createBlogSchema,
   updateBlogSchema,
+  listQuery,
+  blogIdParam,
 };

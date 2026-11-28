@@ -4,7 +4,8 @@ import PetSelectField from "@/components/Forms/PetSelectField";
 import PetModal from "@/components/Shared/PetModal/PetModal";
 import { Button, Grid } from "@mui/material";
 import { FieldValues } from "react-hook-form";
-import { useUpdatePetMutation } from "@/redux/api/petApi";
+import { useAdminUpdatePetMutation } from "@/redux/api/adminApi";
+import { runMutation } from "@/utils/dashboardHelpers";
 import { toast } from "sonner";
 import { colorOptions, genderOptions, healthOptions, sizeOptions } from "@/components/Shared/SelectOptions/SelectOptions";
 
@@ -16,27 +17,18 @@ type TProps = {
 };
 
 const UpdatePetModal = ({ open, setOpen, data }: TProps) => {
-  const [updatePet] = useUpdatePetMutation();
+  const [updatePet] = useAdminUpdatePetMutation();
 
   const handleFormSubmit = async (values: FieldValues) => {
-    try {
-      const petData = {
-        id: data.id,
-        ...values,
-        age: Number(values.age),
-      };
-      const res = await updatePet(petData);
-      // console.log(res);
-      if (res.data.id) {
-        toast.success("Pet updated successfully!");
-        setOpen(false);
-      }
-      
-    } catch (error: any) {
-      toast.error(error.message);
-      console.error(error.message);
-    }
-    
+    //* Only fields the API accepts; empty optional text is dropped, lookup ids stay untouched
+    const { status, ...rest } = values;
+    const body: Record<string, any> = {};
+    Object.entries(rest).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") body[k] = v;
+    });
+    body.age = Number(values.age);
+    const r = await runMutation(updatePet({ id: data.id, body }), "Pet updated successfully!");
+    if (r.ok) setOpen(false);
   };
 
   const defaultValues = {

@@ -1,15 +1,15 @@
 "use client";
 
-import { useGetAllPetsQuery } from "@/redux/api/petApi";
+import { useAdminGetPetsQuery } from "@/redux/api/adminApi";
+import Thumb from "@/components/Dashboard/Common/Thumb";
 import { Box, IconButton } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import Image from "next/image";
 import LoadingPage from "@/components/Shared/Loader/LoadingPage";
 import RemoveRedEyeIcon from "@mui/icons-material/RemoveRedEye";
 import Link from "next/link";
 
 const FeaturePets = () => {
-  const { data, isLoading } = useGetAllPetsQuery({});
+  const { data, isLoading } = useAdminGetPetsQuery({ limit: 5, sortBy: "createdAt", sortOrder: "desc" });
 
   const columns: GridColDef[] = [
     { field: "name", headerName: "Pet Name", flex: 1 },
@@ -19,9 +19,7 @@ const FeaturePets = () => {
       flex: 1,
       renderCell: ({ row }) => {
         return (
-          <Box>
-            <Image src={row.image} width={40} height={40} alt="Pet Image" />
-          </Box>
+          <Thumb src={row.image || row.media?.[0]?.url} alt={row.name} />
         );
       },
     },
@@ -52,7 +50,7 @@ const FeaturePets = () => {
       {!isLoading ? (
         <Box my={2}>
           <DataGrid
-            rows={data?.getAllPets?.slice(0, 5) ?? []}
+            rows={data?.items ?? []}
             columns={columns}
             disableColumnMenu
             hideFooter

@@ -1,29 +1,45 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
-import { Text } from "../components/Text";
-import { useNavigation } from "@react-navigation/native";
-import { colors, fonts } from "../theme";
-import { pets } from "../data/mock";
+import { useIsFocused, useNavigation } from "@react-navigation/native";
+import { colors } from "../theme";
+import { fetchFavorites } from "../api/api";
+import { useAsync } from "../hooks/useAsync";
 import { useAppState } from "../state/AppState";
 import { PetCard } from "../components/PetCard";
+import { EmptyView, ErrorView, LoadingView, SignInPrompt } from "../components/Async";
 
 export const FavoritesScreen = () => {
   const nav = useNavigation<any>();
-  const { favorites } = useAppState();
-  const data = pets.filter((p) => favorites.includes(p.id));
+  const focused = useIsFocused();
+  const { user, favorites } = useAppState();
+  const { data, loading, error, reload } = useAsync(() => (user ? fetchFavorites() : Promise.resolve([])), [user?.id]);
 
+  //* Refresh when the tab regains focus
+  useEffect(() => {
+    if (focused && user) reload();
+  }, [focused]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!user) {
+    return (
+      <View style={styles.screen}>
+        <SignInPrompt text="Sign in to save pets and see them on every device." onPress={() => nav.navigate("SignIn")} />
+      </View>
+    );
+  }
+  if (loading && !data) return <View style={styles.screen}><LoadingView /></View>;
+  if (error && !data) return <View style={styles.screen}><ErrorView message={error} onRetry={reload} /></View>;
+
+  //* Hearts toggled on this screen drop out immediately without waiting for a refetch
+  const items = (data ?? []).filter((p) => favorites.includes(p.id));
   return (
     <View style={styles.screen}>
       <FlatList
-        data={data}
+        data={items}
         keyExtractor={(p) => p.id}
         contentContainerStyle={{ padding: 16, flexGrow: 1 }}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>No saved pets yet</Text>
-            <Text style={styles.emptyText}>Tap the heart on a pet to save it here.</Text>
-          </View>
-        }
+        refreshing={loading}
+        onRefresh={reload}
+        ListEmptyComponent={<EmptyView title="No saved pets yet" text="Tap the heart on a pet to save it here." />}
         renderItem={({ item }) => <PetCard pet={item} onPress={() => nav.navigate("PetDetail", { id: item.id })} />}
       />
     </View>
@@ -32,7 +48,4 @@ export const FavoritesScreen = () => {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.cream },
-  empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6 },
-  emptyTitle: { fontSize: 18, fontFamily: fonts.heading, color: colors.ink },
-  emptyText: { color: colors.slate },
 });

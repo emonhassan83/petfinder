@@ -1,152 +1,157 @@
 "use client";
 
-import { useDeletePetMutation, useGetAllPetsQuery } from "@/redux/api/petApi";
-import { Box, IconButton, Pagination } from "@mui/material";
+import { useState } from "react";
+import { useAdminDeletePetMutation, useAdminGetPetsQuery, useAdminSetPetStatusMutation } from "@/redux/api/adminApi";
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, TextField, Tooltip, Typography } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import DeleteIcon from "@mui/icons-material/Delete";
-import EditIcon from '@mui/icons-material/Edit';
-import Image from "next/image";
-import { useState } from "react";
+import EditIcon from "@mui/icons-material/Edit";
 import UpdatePetModal from "./components/UpdatePetModal";
-import { toast } from "sonner";
-import LoadingPage from "@/components/Shared/Loader/LoadingPage";
 import Meta from "@/components/Meta/MetaData";
+import Thumb from "@/components/Dashboard/Common/Thumb";
+import QueryState from "@/components/Dashboard/Common/QueryState";
+import { runMutation } from "@/utils/dashboardHelpers";
+
+//* PENDING is set by the adoption flow only; admins may set any manual status
+const STATUSES = ["DRAFT", "PUBLISHED", "PAUSED", "ADOPTED", "REMOVED"];
 
 const ManagePet = () => {
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
-  //* define and set query
-  const query: Record<string, any> = {};
-  query["page"] = page;
-  query["limit"] = limit;
-  const [allPets, setAllPets] = useState<any>([]);
-
+  const [paging, setPaging] = useState({ page: 0, pageSize: 10 });
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedPet, setSelectedPet] = useState(null);
-  const { data, isLoading } = useGetAllPetsQuery({ ...query });
-  const [deletePet] = useDeletePetMutation();
+  const [selectedPet, setSelectedPet] = useState<any>(null);
+  const [toDelete, setToDelete] = useState<any>(null);
 
-  const pets = data?.getAllPets;
-  const meta = data?.meta;
-  let pageCount: number;
-
-  if (meta?.total) {
-    pageCount = Math.ceil(meta.total / limit);
-  }
-
-  const handleChange = (event: React.ChangeEvent<unknown>, value: number) => {
-    setPage(value);
-  };
-
-  const handleEditClick = (pet: any) => {
-    setSelectedPet(pet);
-    setIsModalOpen(true);
-  };
-
-  const handleAdoptDelete = async(id: any) =>{
-    try {
-      const res = await deletePet(id);
-      // console.log(res);
-      if (res?.data?.id) {
-        toast.success("Pet deleted successfully!");
-      }
-      
-    } catch (error: any) {
-      toast.error(error.message);
-      console.error(error.message);
-    }
-  }
+  const { data, isLoading, isFetching, error } = useAdminGetPetsQuery({
+    page: paging.page + 1,
+    limit: paging.pageSize,
+    sortBy: "createdAt",
+    sortOrder: "desc",
+  });
+  const [setStatus] = useAdminSetPetStatusMutation();
+  const [deletePet, { isLoading: deleting }] = useAdminDeletePetMutation();
 
   const columns: GridColDef[] = [
-    { field: "name", headerName: "Pet Name", flex: 1 },
+    { field: "name", headerName: "Pet Name", flex: 1, minWidth: 120 },
     {
       field: "image",
       headerName: "Pet Image",
-      flex: 1,
-      renderCell: ({ row }) => {
-        return (
-          <Box>
-            <Image src={row.image} width={40} height={40} alt="Pet Image" />
-          </Box>
-        );
-      },
+      width: 90,
+      sortable: false,
+      renderCell: ({ row }) => <Thumb src={row.image || row.media?.[0]?.url} alt={row.name} />,
     },
-    { field: "species", headerName: "Species", flex: 1 },
-    { field: "color", headerName: "Color", flex: 1 },
-    { field: "age", headerName: "Age", flex: 1 },
-    { field: "size", headerName: "Size", flex: 1 },
+    { field: "species", headerName: "Species", flex: 0.7, minWidth: 90 },
+    {
+      field: "owner",
+      headerName: "Listed by",
+      flex: 1,
+      minWidth: 140,
+      sortable: false,
+      valueGetter: ({ row }) => row.shelter?.name ?? row.user?.name ?? "-",
+    },
+    { field: "age", headerName: "Age", width: 70 },
+    {
+      field: "status",
+      headerName: "Status",
+      width: 150,
+      sortable: false,
+      renderCell: ({ row }) => (
+        <TextField
+          select
+          size="small"
+          variant="standard"
+          value={row.status}
+          onChange={(e) => runMutation(setStatus({ id: row.id, status: e.target.value }), "Status updated.")}
+          sx={{ minWidth: 120 }}
+        >
+          {STATUSES.map((s) => (
+            <MenuItem key={s} value={s}>
+              {s}
+            </MenuItem>
+          ))}
+          {!STATUSES.includes(row.status) && (
+            <MenuItem value={row.status} disabled>
+              {row.status}
+            </MenuItem>
+          )}
+        </TextField>
+      ),
+    },
     {
       field: "action",
       headerName: "Action",
-      flex: 1,
+      width: 120,
+      sortable: false,
       headerAlign: "center",
       align: "center",
-      renderCell: ({ row }) => {
-        return (
-          <Box display="flex" gap={1}>
-            <IconButton onClick={() => handleEditClick(row)} color="primary" aria-label="delete">
-            <EditIcon />
-          </IconButton>
-            <IconButton onClick={() => handleAdoptDelete(row.id)} color="primary" aria-label="delete">
-            <DeleteIcon />
-          </IconButton>
-            </Box>
-        );
-      },
+      renderCell: ({ row }) => (
+        <Box display="flex" gap={0.5}>
+          <Tooltip title="Edit">
+            <IconButton
+              color="primary"
+              aria-label={`Edit ${row.name}`}
+              onClick={() => {
+                setSelectedPet(row);
+                setIsModalOpen(true);
+              }}
+            >
+              <EditIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete">
+            <IconButton color="primary" aria-label={`Delete ${row.name}`} onClick={() => setToDelete(row)}>
+              <DeleteIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ),
     },
   ];
 
   return (
     <>
-    <Meta
-        title="Manager Pet | Petfinder - Pet Adoption Platform & Management System"
-        description="This is the admin dashboard of Petfinder where admin can manage their manage pets like delete and update and more."
-      />
+      <Meta title="Manage Pets | Petfinder" description="Admin dashboard: manage pet listings and their status." />
 
-    <UpdatePetModal
-        open={isModalOpen}
-        setOpen={setIsModalOpen}
-        data={selectedPet}
-      />
-    <Box>
-      {!isLoading ? (
-        <Box my={2}>
-          <DataGrid
-            rows={pets ?? []}
-            columns={columns}
-            initialState={{
-              pagination: {
-                paginationModel: { page: 0, pageSize: 10 },
-              },
+      <UpdatePetModal open={isModalOpen} setOpen={setIsModalOpen} data={selectedPet} />
+
+      <Dialog open={!!toDelete} onClose={() => setToDelete(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Delete listing?</DialogTitle>
+        <DialogContent>
+          <Typography>{toDelete?.name} and its applications, media and visits will be permanently removed.</Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button variant="text" color="inherit" onClick={() => setToDelete(null)}>
+            Cancel
+          </Button>
+          <Button
+            color="error"
+            disabled={deleting}
+            onClick={async () => {
+              const r = await runMutation(deletePet(toDelete.id), "Pet deleted.");
+              if (r.ok) setToDelete(null);
             }}
-            pageSizeOptions={[5, 10]}
-            hideFooterPagination
-            slots={{
-              footer: () => {
-                return (
-                  <Box
-                    sx={{
-                      my: 2,
-                      display: "flex",
-                      justifyContent: "end",
-                    }}
-                  >
-                    <Pagination
-                      color="primary"
-                      count={pageCount}
-                      page={page}
-                      onChange={handleChange}
-                    />
-                  </Box>
-                );
-              },
-            }}
-          />
-        </Box>
-      ) : (
-        <LoadingPage/>
-      )}
-    </Box>
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Typography variant="h4" sx={{ mb: 2 }}>
+        Manage pets
+      </Typography>
+      <QueryState isLoading={isLoading} error={error}>
+        <DataGrid
+          autoHeight
+          rows={data?.items ?? []}
+          columns={columns}
+          loading={isFetching}
+          rowCount={data?.meta?.total ?? 0}
+          paginationMode="server"
+          paginationModel={paging}
+          onPaginationModelChange={setPaging}
+          pageSizeOptions={[10, 25, 50]}
+          disableRowSelectionOnClick
+        />
+      </QueryState>
     </>
   );
 };

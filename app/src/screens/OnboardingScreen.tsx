@@ -4,7 +4,7 @@ import { Text, TextInput } from "../components/Text";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors, fonts, radius } from "../theme";
-import { Size } from "../data/mock";
+import { Size } from "../api/types";
 import { useNavigation } from "@react-navigation/native";
 import { useAppState } from "../state/AppState";
 

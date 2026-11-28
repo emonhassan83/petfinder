@@ -1,13 +1,30 @@
-import { Server } from "http";
+import http from "http";
 import app from "./app";
 import config from "./config";
+import prisma from "./shared/prisma";
+import { initSocket } from "./socket";
+import { logger } from "./shared/logger";
+import { startVisitReminders } from "./app/modules/visit/visit.reminders";
+import "./socket/chat";
+import "./app/modules/notification/notification.channels";
 
-let server: Server;
+const server = http.createServer(app);
+initSocket(server);
 
-async function main() {
-  server = app.listen(config.port, () => {
-    console.log(`Pet Adoption server is ready at http://localhost:${config.port}`);
+server.listen(config.port, () => {
+  logger.info(`Petfinder server is ready at http://localhost:${config.port}`);
+  startVisitReminders();
+});
+
+const shutdown = (signal: string) => {
+  logger.info(`${signal} received, shutting down`);
+  server.close(async () => {
+    await prisma.$disconnect();
+    process.exit(0);
   });
-}
+  setTimeout(() => process.exit(1), 10000).unref();
+};
 
-main();
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("unhandledRejection", (reason) => logger.error("Unhandled rejection", reason));

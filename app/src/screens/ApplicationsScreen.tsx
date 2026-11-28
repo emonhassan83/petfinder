@@ -1,20 +1,30 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Alert, FlatList, Pressable, StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
 import { Text } from "../components/Text";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { colors, fonts, radius } from "../theme";
-import { ApplicationStatus, Visit, VisitStatus, pets } from "../data/mock";
+import { Application, ApplicationStatus, Visit, VisitStatus } from "../api/types";
+import { cancelVisit, fetchApplications, fetchVisits, withdrawApplication } from "../api/api";
+import { useAsync } from "../hooks/useAsync";
 import { useAppState } from "../state/AppState";
+import { dateLabel, timeAgo, timeLabel } from "../utils/date";
+import { EmptyView, ErrorView, LoadingView, SignInPrompt } from "../components/Async";
 
-const badge: Record<ApplicationStatus, string> = { PENDING: colors.warning, APPROVED: colors.success, REJECTED: colors.danger };
-const visitBadge: Record<VisitStatus, string> = { REQUESTED: colors.warning, CONFIRMED: colors.success, CANCELLED: colors.danger };
-
-const today = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const badge: Record<ApplicationStatus, string> = {
+  PENDING: colors.warning,
+  APPROVED: colors.success,
+  REJECTED: colors.danger,
+  WITHDRAWN: colors.slate,
+  COMPLETED: colors.success,
 };
-const prettyDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+const visitBadge: Record<VisitStatus, string> = {
+  REQUESTED: colors.warning,
+  CONFIRMED: colors.success,
+  CANCELLED: colors.danger,
+  COMPLETED: colors.success,
+  NO_SHOW: colors.slate,
+};
 
 const Segments = ({ value, onChange }: { value: "applications" | "visits"; onChange: (v: "applications" | "visits") => void }) => (
   <View style={styles.seg}>
@@ -36,63 +46,103 @@ const Segments = ({ value, onChange }: { value: "applications" | "visits"; onCha
 export const ApplicationsScreen = () => {
   const nav = useNavigation<any>();
   const route = useRoute<any>();
-  const { applications, visits, cancelVisit } = useAppState();
+  const focused = useIsFocused();
+  const { user } = useAppState();
   const [tab, setTab] = useState<"applications" | "visits">("applications");
+  const apps = useAsync(() => (user ? fetchApplications() : Promise.resolve([] as Application[])), [user?.id]);
+  const visits = useAsync(() => (user ? fetchVisits() : Promise.resolve([] as Visit[])), [user?.id]);
 
   // Deep link from the booking confirmation: navigate("Applications", { tab: "visits" })
   useEffect(() => {
     if (route.params?.tab === "visits") setTab("visits");
   }, [route.params?.tab]);
 
+  //* Pull fresh statuses whenever the tab is shown
+  useEffect(() => {
+    if (focused && user) {
+      apps.reload();
+      visits.reload();
+    }
+  }, [focused]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const act = useCallback(async (fn: () => Promise<unknown>, reload: () => void, failTitle: string) => {
+    try {
+      await fn();
+      reload();
+    } catch (e: any) {
+      Alert.alert(failTitle, e?.message ?? "Please try again.");
+    }
+  }, []);
+
   const confirmCancel = (v: Visit) =>
     Alert.alert("Cancel visit?", "The shelter will be told you can no longer make it.", [
       { text: "Keep visit", style: "cancel" },
-      { text: "Cancel visit", style: "destructive", onPress: () => cancelVisit(v.id) },
+      { text: "Cancel visit", style: "destructive", onPress: () => act(() => cancelVisit(v.id), visits.reload, "Could not cancel the visit") },
     ]);
 
-  const now = today();
-  const upcoming = visits.filter((v) => v.date >= now).sort((a, b) => a.date.localeCompare(b.date));
-  const past = visits.filter((v) => v.date < now).sort((a, b) => b.date.localeCompare(a.date));
-  const visitRows: ({ header: string } | Visit)[] = [
-    ...(upcoming.length ? [{ header: "Upcoming" }, ...upcoming] : []),
-    ...(past.length ? [{ header: "Past" }, ...past] : []),
-  ];
+  const confirmWithdraw = (a: Application) =>
+    Alert.alert("Withdraw application?", `Your application for ${a.petName} will be withdrawn.`, [
+      { text: "Keep it", style: "cancel" },
+      { text: "Withdraw", style: "destructive", onPress: () => act(() => withdrawApplication(a.id), apps.reload, "Could not withdraw") },
+    ]);
 
   const header = <Segments value={tab} onChange={setTab} />;
+  const listStyle = { backgroundColor: colors.cream };
+  const content = { padding: 16, gap: 12, flexGrow: 1 } as const;
+
+  if (!user) {
+    return (
+      <View style={[{ flex: 1 }, listStyle]}>
+        <SignInPrompt text="Sign in to apply to adopt, book visits and track their status." onPress={() => nav.navigate("SignIn")} />
+      </View>
+    );
+  }
 
   if (tab === "visits") {
+    const now = Date.now();
+    const list = visits.data ?? [];
+    const upcoming = list.filter((v) => new Date(v.startsAt).getTime() >= now).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+    const past = list.filter((v) => new Date(v.startsAt).getTime() < now).sort((a, b) => b.startsAt.localeCompare(a.startsAt));
+    const rows: ({ header: string } | Visit)[] = [
+      ...(upcoming.length ? [{ header: "Upcoming" }, ...upcoming] : []),
+      ...(past.length ? [{ header: "Past" }, ...past] : []),
+    ];
     return (
       <FlatList
-        style={{ backgroundColor: colors.cream }}
-        data={visitRows}
+        style={listStyle}
+        data={rows}
         keyExtractor={(r) => ("header" in r ? r.header : r.id)}
-        contentContainerStyle={{ padding: 16, gap: 12, flexGrow: 1 }}
+        contentContainerStyle={content}
+        refreshing={visits.loading && !!visits.data}
+        onRefresh={visits.reload}
         ListHeaderComponent={header}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.title}>No visits yet</Text>
-            <Text style={{ color: colors.slate }}>Book a visit from any pet page.</Text>
-          </View>
+          visits.loading ? (
+            <LoadingView />
+          ) : visits.error ? (
+            <ErrorView message={visits.error} onRetry={visits.reload} />
+          ) : (
+            <EmptyView title="No visits yet" text="Book a visit from any pet page." />
+          )
         }
         renderItem={({ item }) => {
           if ("header" in item) return <Text style={styles.group}>{item.header}</Text>;
-          const pet = pets.find((p) => p.id === item.petId);
-          const canCancel = item.date >= now && item.status !== "CANCELLED";
+          const canCancel = new Date(item.startsAt).getTime() >= now && (item.status === "REQUESTED" || item.status === "CONFIRMED");
           return (
             <View style={styles.card}>
-              <Pressable onPress={() => nav.navigate("PetDetail", { id: item.petId })} accessibilityRole="button" accessibilityLabel={`View ${pet?.name ?? "pet"}`} style={styles.visitMain}>
-                <Image source={{ uri: pet?.image }} style={styles.thumb} contentFit="cover" />
+              <Pressable onPress={() => nav.navigate("PetDetail", { id: item.petId })} accessibilityRole="button" accessibilityLabel={`View ${item.petName}`} style={styles.visitMain}>
+                <Image source={item.petImage ? { uri: item.petImage } : undefined} style={styles.thumb} contentFit="cover" />
                 <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={styles.title}>{pet?.name ?? "Pet"}</Text>
-                  <Text style={styles.meta} numberOfLines={1}>{pet?.shelter}</Text>
-                  <Text style={styles.meta}>{prettyDate(item.date)} · {item.time}</Text>
+                  <Text style={styles.title}>{item.petName}</Text>
+                  <Text style={styles.meta} numberOfLines={1}>{item.shelter}</Text>
+                  <Text style={styles.meta}>{dateLabel(item.startsAt, item.timezone)} · {timeLabel(item.startsAt, item.timezone)}</Text>
                 </View>
                 <View style={[styles.badge, { backgroundColor: visitBadge[item.status] }]}>
-                  <Text style={styles.badgeText}>{item.status}</Text>
+                  <Text style={styles.badgeText}>{item.status.replace("_", " ")}</Text>
                 </View>
               </Pressable>
               {canCancel && (
-                <Pressable onPress={() => confirmCancel(item)} accessibilityRole="button" accessibilityLabel={`Cancel visit with ${pet?.name ?? "pet"}`} style={styles.cancel}>
+                <Pressable onPress={() => confirmCancel(item)} accessibilityRole="button" accessibilityLabel={`Cancel visit with ${item.petName}`} style={styles.cancel}>
                   <Text style={styles.cancelText}>Cancel visit</Text>
                 </Pressable>
               )}
@@ -105,35 +155,41 @@ export const ApplicationsScreen = () => {
 
   return (
     <FlatList
-      style={{ backgroundColor: colors.cream }}
-      data={applications}
+      style={listStyle}
+      data={apps.data ?? []}
       keyExtractor={(a) => a.id}
-      contentContainerStyle={{ padding: 16, gap: 12, flexGrow: 1 }}
+      contentContainerStyle={content}
+      refreshing={apps.loading && !!apps.data}
+      onRefresh={apps.reload}
       ListHeaderComponent={header}
       ListEmptyComponent={
-        <View style={styles.empty}>
-          <Text style={styles.title}>No applications yet</Text>
-          <Text style={{ color: colors.slate }}>Apply to a pet and track the status here.</Text>
-        </View>
+        apps.loading ? (
+          <LoadingView />
+        ) : apps.error ? (
+          <ErrorView message={apps.error} onRetry={apps.reload} />
+        ) : (
+          <EmptyView title="No applications yet" text="Apply to a pet and track the status here." />
+        )
       }
-      renderItem={({ item }) => {
-        const pet = pets.find((p) => p.id === item.petId);
-        return (
-          <Pressable
-            onPress={() => nav.navigate("PetDetail", { id: item.petId })}
-            accessibilityRole="button"
-            style={styles.card}
-          >
+      renderItem={({ item }) => (
+        <View style={styles.card}>
+          <Pressable onPress={() => nav.navigate("PetDetail", { id: item.petId })} accessibilityRole="button" accessibilityLabel={`View ${item.petName}`} style={styles.visitMain}>
+            <Image source={item.petImage ? { uri: item.petImage } : undefined} style={styles.thumb} contentFit="cover" />
             <View style={{ flex: 1 }}>
-              <Text style={styles.title}>{pet?.name ?? "Pet"}</Text>
-              <Text style={{ color: colors.slate }}>{pet?.shelter} · {item.date}</Text>
+              <Text style={styles.title}>{item.petName}</Text>
+              <Text style={styles.meta}>Applied {timeAgo(item.createdAt)}</Text>
             </View>
             <View style={[styles.badge, { backgroundColor: badge[item.status] }]}>
               <Text style={styles.badgeText}>{item.status}</Text>
             </View>
           </Pressable>
-        );
-      }}
+          {(item.status === "PENDING" || item.status === "APPROVED") && (
+            <Pressable onPress={() => confirmWithdraw(item)} accessibilityRole="button" accessibilityLabel={`Withdraw application for ${item.petName}`} style={styles.cancel}>
+              <Text style={styles.cancelText}>Withdraw</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
     />
   );
 };
@@ -153,5 +209,4 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontFamily: fonts.heading, color: colors.ink },
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
   badgeText: { color: colors.white, fontWeight: "700", fontSize: 12 },
-  empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6, paddingTop: 60 },
 });

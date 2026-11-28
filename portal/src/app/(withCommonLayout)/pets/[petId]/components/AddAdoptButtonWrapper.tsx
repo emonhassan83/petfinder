@@ -1,15 +1,14 @@
-import { cookies } from "next/headers";
-import { decodedToken } from "@/utils/jwt";
 import AddAdoptButton from "./AddAdoptButton";
 
-export default async function AdoptionButtonWrapper({petId}: {petId: string}) {
-  const cookieStore = await cookies();
-  const accessToken = cookieStore.get("accessToken")?.value;
-  const user = accessToken ? decodedToken(accessToken) : null;
-
-  return (
-    <>
-      <AddAdoptButton petId={petId} user={user} />
-    </>
-  );
+//* Kept as a thin wrapper so the page API stays the same; auth state is read on the client.
+export default function AdoptionButtonWrapper({
+  petId,
+  ownerId,
+  acceptsApplications,
+}: {
+  petId: string;
+  ownerId?: string;
+  acceptsApplications?: boolean;
+}) {
+  return <AddAdoptButton petId={petId} ownerId={ownerId} acceptsApplications={acceptsApplications} />;
 }

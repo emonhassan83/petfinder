@@ -1,30 +1,33 @@
-// PieChart.tsx
+"use client";
+
 import React from "react";
-import { Pie } from "react-chartjs-2";
+import { Doughnut } from "react-chartjs-2";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
+import { baseOptions, useChartColors } from "./useChartColors";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-const PieChart = ({ data }: any) => {
+//* data: [{ status, count }] (or set `labelKey`, e.g. "role"). Zero slices are dropped.
+const PieChart = ({ data, labelKey = "status", label = "Distribution" }: { data?: any[]; labelKey?: string; label?: string }) => {
+  const c = useChartColors();
+  const rows = (data ?? []).filter((item) => item.count > 0);
+
   const chartData = {
-    labels: data.map((item: any) => item.status),
+    labels: rows.map((item) => String(item[labelKey]).replace(/_/g, " ")),
     datasets: [
       {
-        label: 'Status Distribution',
-        data: data.map((item: any) => item.count),
-        backgroundColor: [
-          'rgba(75, 192, 192, 0.6)',
-          'rgba(255, 206, 86, 0.6)',
-          'rgba(255, 99, 132, 0.6)',
-        ],
-        borderWidth: 1,
+        label,
+        data: rows.map((item) => item.count),
+        backgroundColor: rows.map((_, i) => c.series[i % c.series.length]),
+        borderColor: c.paper,
+        borderWidth: 2,
       },
     ],
   };
 
-  return (
-    <Pie data={chartData} options={{ maintainAspectRatio: false }} />
-  );
+  if (rows.length === 0) return <div style={{ color: c.slate, padding: 16 }}>No data yet.</div>;
+
+  return <Doughnut key={c.scheme} data={chartData} options={baseOptions(c, { cutout: "55%" })} />;
 };
 
 export default PieChart;

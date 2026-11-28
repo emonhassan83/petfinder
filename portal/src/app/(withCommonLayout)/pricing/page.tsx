@@ -1,12 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import { Accordion, AccordionDetails, AccordionSummary, Box, Button, Chip, Container, Typography } from "@mui/material";
+import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Chip, Container, Skeleton, Typography } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Link from "next/link";
 import Meta from "@/components/Meta/MetaData";
 import PageHeader from "@/components/Shared/PageHeader";
+import { toast } from "sonner";
 import { mockPlans } from "@/mock/shelter";
+import { PublicPlan, usePubGetPlansQuery, usePubStartSubscriptionCheckoutMutation } from "@/redux/api/planApi";
+import { useAuthUser } from "@/hooks/useAuthUser";
+import { formatMoney } from "@/lib/apiData";
+
+//* Offline preview only (mock prices are whole dollars; the API uses cents)
+const previewPlans: PublicPlan[] = mockPlans.map((p) => ({
+  id: p.id,
+  code: p.id,
+  name: p.name,
+  currency: "USD",
+  price: { month: p.price.month * 100, year: p.price.year * 100 },
+  limits: { listings: p.listings, mediaPerListing: p.media, featured: p.featured, members: p.members, analytics: p.id !== "free" },
+  purchasable: { month: false, year: false },
+}));
+
+//* Account holders who can buy a plan (POST /subscriptions/checkout-session)
+const BILLING_ROLES = ["owner", "shelter"];
 
 type Cycle = "month" | "year";
 
@@ -38,9 +56,58 @@ const Row = ({ label, value }: { label: string; value: string | number }) => (
   </Box>
 );
 
-//* Public plans page for owners and shelters (Pawvelle "transparent pricing" menu). Checkout arrives with Stripe in Phase 3d.
+//* Public plans page for owners and shelters (Pawvelle "transparent pricing" menu). Plans: GET /plans.
+//* Guests -> register; signed-in OWNER/SHELTER -> Stripe Checkout (redirect to the returned url).
 const PricingPage = () => {
   const [cycle, setCycle] = useState<Cycle>("month");
+  const { data, isLoading, error } = usePubGetPlansQuery();
+  const offline = !!error && !(error as any)?.status;
+  const plans = offline ? previewPlans : data ?? [];
+  const { user } = useAuthUser();
+  const [checkout, { isLoading: redirecting }] = usePubStartSubscriptionCheckoutMutation();
+  const [pending, setPending] = useState("");
+
+  const choose = async (p: PublicPlan) => {
+    setPending(p.id);
+    try {
+      const res = await checkout({ planId: p.id, interval: cycle }).unwrap();
+      if (res?.url) window.location.assign(res.url);
+    } catch (err: any) {
+      //* 409: already subscribed (change plans from Billing); 503: payments not configured
+      toast.error(err?.data?.message || "Checkout is not available right now");
+    } finally {
+      setPending("");
+    }
+  };
+
+  const cta = (p: PublicPlan, popular: boolean) => {
+    const price = p.price[cycle];
+    const label = price === 0 ? "Start free" : `Choose ${p.name}`;
+    const common = { variant: popular ? ("contained" as const) : ("outlined" as const), size: "large" as const, fullWidth: true, sx: { mt: 3 } };
+    if (!user) return <Button component={Link} href="/register" {...common}>{label}</Button>;
+    if (!BILLING_ROLES.includes(user.role)) {
+      return (
+        <>
+          <Button disabled {...common}>{label}</Button>
+          <Typography sx={{ fontSize: 13, color: "text.secondary", mt: 1, textAlign: "center" }}>Plans are for owner and shelter accounts.</Typography>
+        </>
+      );
+    }
+    if (price === 0) return <Button component={Link} href="/dashboard/shelter/billing" {...common}>Manage plan</Button>;
+    if (!p.purchasable?.[cycle]) {
+      return (
+        <>
+          <Button disabled {...common}>{label}</Button>
+          <Typography sx={{ fontSize: 13, color: "text.secondary", mt: 1, textAlign: "center" }}>Online checkout for this plan opens soon.</Typography>
+        </>
+      );
+    }
+    return (
+      <Button {...common} disabled={redirecting} onClick={() => choose(p)}>
+        {pending === p.id ? "Opening checkout…" : label}
+      </Button>
+    );
+  };
 
   return (
     <>
@@ -81,9 +148,15 @@ const PricingPage = () => {
       </PageHeader>
 
       <Container sx={{ py: { xs: 5, md: 8 } }}>
+        {offline && (
+          <Alert severity="info" sx={{ mb: 3, borderRadius: 3 }}>
+            Showing preview plans while the billing service is offline.
+          </Alert>
+        )}
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 3, alignItems: "stretch" }}>
-          {mockPlans.map((p) => {
-            const popular = p.id === "pro";
+          {isLoading && Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} variant="rounded" height={520} sx={{ borderRadius: "var(--pf-radius-card)" }} />)}
+          {plans.map((p) => {
+            const popular = p.code === "pro";
             const price = p.price[cycle];
             return (
               <Box
@@ -105,36 +178,34 @@ const PricingPage = () => {
                   {p.name}
                 </Typography>
                 <Typography color="text.secondary" sx={{ mt: 0.5, minHeight: 48 }}>
-                  {blurbs[p.id]}
+                  {p.description || blurbs[p.code] || ""}
                 </Typography>
                 <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.75, my: 2.5 }}>
-                  <Typography sx={{ fontFamily: "var(--font-heading), Georgia, serif", fontWeight: 600, fontSize: 52, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>${price}</Typography>
+                  <Typography sx={{ fontFamily: "var(--font-heading), Georgia, serif", fontWeight: 600, fontSize: 52, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{formatMoney(price, p.currency)}</Typography>
                   <Typography color="text.secondary">{price === 0 ? "forever" : cycle === "month" ? "per month" : "per year"}</Typography>
                 </Box>
 
                 <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 1.5 }}>
-                  <Row label="Active listings" value={p.listings} />
-                  <Row label="Photos & videos per listing" value={p.media} />
-                  <Row label="Featured slots" value={p.featured || "–"} />
-                  <Row label="Team members" value={p.members} />
+                  <Row label="Active listings" value={p.limits.listings} />
+                  <Row label="Photos & videos per listing" value={p.limits.mediaPerListing} />
+                  <Row label="Featured slots" value={p.limits.featured || "–"} />
+                  <Row label="Team members" value={p.limits.members} />
                 </Box>
                 <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0, mt: 2, display: "grid", gap: 0.75, flex: 1, alignContent: "start" }}>
-                  {extras[p.id].map((x) => (
+                  {(extras[p.code] ?? (p.limits.analytics ? ["Analytics dashboard"] : [])).map((x) => (
                     <Typography component="li" key={x} sx={{ fontSize: 15, color: "text.secondary", "&::before": { content: '"✓"', color: "primary.main", fontWeight: 800, mr: 1 } }}>
                       {x}
                     </Typography>
                   ))}
                 </Box>
-                <Button component={Link} href="/register" variant={popular ? "contained" : "outlined"} size="large" fullWidth sx={{ mt: 3 }}>
-                  {price === 0 ? "Start free" : `Choose ${p.name}`}
-                </Button>
+                {cta(p, popular)}
               </Box>
             );
           })}
         </Box>
 
         <Typography color="text.secondary" sx={{ textAlign: "center", mt: 3, fontSize: 14 }}>
-          Prices in USD. Taxes may apply. Cancel any time.
+          Prices in {plans[0]?.currency ?? "USD"}. Taxes may apply. Cancel any time.
         </Typography>
 
         <Box sx={{ maxWidth: 780, mx: "auto", mt: { xs: 7, md: 10 } }}>

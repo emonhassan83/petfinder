@@ -1,21 +1,24 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "../components/Text";
 import { colors, fonts, radius, shadow } from "../theme";
-import { Story, stories } from "../data/mock";
+import { Story } from "../api/types";
+import { fetchStories } from "../api/api";
+import { useAsync } from "../hooks/useAsync";
+import { EmptyView, ErrorView, LoadingView } from "../components/Async";
 
 //* Alternating photo heights give the masonry feel
 const heights = [200, 260, 230, 180];
 
 export const StoryCard = ({ story, height, onPress }: { story: Story; height: number; onPress: () => void }) => (
   <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`Read story: ${story.title}`} style={[styles.card, shadow]}>
-    <Image source={{ uri: story.image }} style={{ height, backgroundColor: colors.sand }} contentFit="cover" />
+    <Image source={story.image ? { uri: story.image } : undefined} style={{ height, backgroundColor: colors.sand }} contentFit="cover" />
     <View style={styles.cardBody}>
       <Text style={styles.cardTitle}>{story.title}</Text>
-      <Text style={styles.cardMeta}>{story.petName} · {story.city}</Text>
+      <Text style={styles.cardMeta}>{[story.petName, story.city].filter(Boolean).join(" · ")}</Text>
     </View>
   </Pressable>
 );
@@ -23,12 +26,23 @@ export const StoryCard = ({ story, height, onPress }: { story: Story; height: nu
 //* Two-column staggered list; tapping a card opens a story modal
 export const StoriesScreen = ({ route }: any) => {
   const insets = useSafeAreaInsets();
-  const [open, setOpen] = useState<Story | null>(stories.find((s) => s.id === route?.params?.id) ?? null);
+  const dismissed = useRef(false);
+  const { data, loading, error, reload } = useAsync(fetchStories, []);
+  const stories = data ?? [];
+  const [picked, setOpen] = useState<Story | null>(null);
+  //* A story id from the Discover row opens its modal once the list has loaded
+  const open = picked ?? (route?.params?.id && !dismissed.current ? stories.find((s) => s.id === route.params.id) ?? null : null);
   const cols = useMemo(() => {
     const out: { story: Story; h: number }[][] = [[], []];
     stories.forEach((story, i) => out[i % 2].push({ story, h: heights[i % heights.length] }));
     return out;
-  }, []);
+  }, [stories]);
+
+  if (loading) return <LoadingView />;
+  if (error) return <ErrorView message={error} onRetry={reload} />;
+  if (!stories.length) return <EmptyView title="No stories yet" text="Happy adoption stories from shelters will appear here." />;
+
+  const closeStory = () => { dismissed.current = true; setOpen(null); };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
@@ -40,19 +54,18 @@ export const StoriesScreen = ({ route }: any) => {
         ))}
       </ScrollView>
 
-      <Modal visible={!!open} animationType="slide" onRequestClose={() => setOpen(null)}>
+      <Modal visible={!!open} animationType="slide" onRequestClose={closeStory}>
         {open && (
           <View style={{ flex: 1, backgroundColor: colors.cream }}>
             <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}>
-              <Image source={{ uri: open.image }} style={styles.hero} contentFit="cover" />
+              <Image source={open.image ? { uri: open.image } : undefined} style={styles.hero} contentFit="cover" />
               <View style={styles.detail}>
-                <Text style={styles.family}>{open.family} · {open.city}</Text>
+                <Text style={styles.family}>{[open.family, open.city].filter(Boolean).join(" · ")}</Text>
                 <Text style={styles.detailTitle}>{open.title}</Text>
-                <Text style={styles.body}>{open.excerpt}</Text>
-                <Text style={styles.body}>{open.petName} has settled in beautifully and the whole household agrees: adopting was the best decision they made this year.</Text>
+                <Text style={styles.body}>{open.body || open.excerpt}</Text>
               </View>
             </ScrollView>
-            <Pressable onPress={() => setOpen(null)} accessibilityRole="button" accessibilityLabel="Close story" style={[styles.close, { top: insets.top + 8 }]}>
+            <Pressable onPress={closeStory} accessibilityRole="button" accessibilityLabel="Close story" style={[styles.close, { top: insets.top + 8 }]}>
               <Ionicons name="close" size={22} color={colors.white} />
             </Pressable>
           </View>

@@ -1,13 +1,14 @@
 "use client";
 
 import AccountMenu from "@/components/Dashboard/AccountMenu/AccountMenu";
-import { isLoggedIn } from "@/services/auth.services";
+import { useAuthUser } from "@/hooks/useAuthUser";
 import { Box, Button } from "@mui/material";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import Link from "next/link";
 
 const AuthButton = () => {
-  const loginUser = isLoggedIn();
+  //* read after mount so server and client render the same markup
+  const { user: loginUser } = useAuthUser();
 
   return loginUser ? (
     <AccountMenu />

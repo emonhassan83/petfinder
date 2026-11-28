@@ -1,15 +1,29 @@
 export enum tagTypes {
-    user = "user",
-    pet = "pet",
-    adoptionRequest = "adoptionRequest",
-    blog = "blog",
-    meta = "meta"
-  }
-  
-  export const tagTypesList = [
-    tagTypes.user,
-    tagTypes.pet,
-    tagTypes.adoptionRequest,
-    tagTypes.blog,
-    tagTypes.meta
-  ];
+  user = "user",
+  pet = "pet",
+  adoptionRequest = "adoptionRequest",
+  blog = "blog",
+  meta = "meta",
+  shelter = "shelter",
+  member = "member",
+  media = "media",
+  favorite = "favorite",
+  conversation = "conversation",
+  message = "message",
+  notification = "notification",
+  report = "report",
+  review = "review",
+  plan = "plan",
+  subscription = "subscription",
+  transaction = "transaction",
+  lookup = "lookup",
+  cms = "cms",
+  setting = "setting",
+  auditLog = "auditLog",
+  visit = "visit",
+  availability = "availability",
+  fee = "fee",
+  story = "story",
+}
+
+export const tagTypesList = Object.values(tagTypes);

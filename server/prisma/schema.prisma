@@ -1,4 +1,10 @@
-//* This is your Prisma schema file,
+//* Petfinder Prisma schema (Phase 3 foundation).
+//* Conventions:
+//*  - Money stored as Int in minor units (cents/poisha) unless noted; legacy Donation.amount stays Float (major units).
+//*  - Currency codes are uppercase ISO 4217 ("USD", "BDT"); lower-case them only when calling Stripe.
+//*  - Every relation has an explicit onDelete. Users are soft-deleted (isDeleted/status), so ownership
+//*    and billing records use Restrict; dependent child rows use Cascade; optional references use SetNull.
+//*  - Legacy free-text Pet.species/breed/location are kept until the lookup ids are fully adopted.
 
 generator client {
   provider = "prisma-client-js"
@@ -9,55 +15,279 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id              String            @id @default(uuid())
-  name            String
-  email           String            @unique
-  password        String
-  role            UserRole
-  profilePhoto    String?
-  contactNumber   String
-  address         String
-  gender          Gender?           @default(Unknown)
-  status          UserStatus        @default(ACTIVE)
-  isDeleted       Boolean           @default(false)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  adoptionRequest AdoptionRequest[]
-  pet             Pet[]
-  blog            Blog[]
-  comment         Comment[]
-  donation        Donation[]
+// ───────────────────────────── Users & auth ─────────────────────────────
 
+model User {
+  id                String       @id @default(uuid())
+  name              String
+  email             String       @unique
+  //* Null for social-login accounts that never set a password
+  password          String?
+  role              UserRole
+  profilePhoto      String?
+  contactNumber     String       @default("")
+  address           String       @default("")
+  gender            Gender?      @default(Unknown)
+  status            UserStatus   @default(ACTIVE)
+  isDeleted         Boolean      @default(false)
+  emailVerified     Boolean      @default(false)
+  authProvider      AuthProvider @default(CREDENTIALS)
+  providerId        String?
+  lastLoginAt       DateTime?
+  //* Tokens (reset/access) issued before this instant are rejected
+  passwordChangedAt DateTime?
+  stripeCustomerId  String?      @unique
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  adoptionRequest    AdoptionRequest[]
+  decidedAdoptions   AdoptionRequest[]         @relation("AdoptionDecidedBy")
+  pet                Pet[]
+  blog               Blog[]
+  comment            Comment[]
+  donation           Donation[]
+  shelterProfile     ShelterProfile?           @relation("ShelterOwner")
+  verifiedShelters   ShelterProfile[]          @relation("ShelterVerifiedBy")
+  shelterMemberships ShelterMember[]
+  favorites          Favorite[]
+  conversations      ConversationParticipant[]
+  messages           Message[]
+  notifications      Notification[]
+  pushTokens         PushToken[]
+  reportsFiled       Report[]                  @relation("ReportReporter")
+  reportsResolved    Report[]                  @relation("ReportResolvedBy")
+  reviewsWritten     Review[]                  @relation("ReviewAuthor")
+  reviewsReceived    Review[]                  @relation("ReviewTargetUser")
+  subscriptions      Subscription[]
+  payments           Payment[]
+  auditLogs          AuditLog[]
+  refreshTokens      RefreshToken[]
+  visits             Visit[]
+  storiesSubmitted   SuccessStory[]            @relation("StoryAuthor")
+  storiesModerated   SuccessStory[]            @relation("StoryModeratedBy")
+  pagesUpdated       Page[]
+  settingsUpdated    Setting[]
+
+  @@unique([authProvider, providerId])
+  @@index([role])
+  @@index([status, isDeleted])
   @@map("users")
 }
 
+//* One row per issued refresh token. Rotation: on refresh the presented token is revoked and
+//* replaced; re-use of a revoked token revokes the whole family (token theft detection).
+model RefreshToken {
+  id           String    @id @default(uuid())
+  userId       String
+  tokenHash    String    @unique
+  family       String
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  replacedById String?
+  userAgent    String?
+  ip           String?
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([family])
+  @@map("refresh_tokens")
+}
+
+// ───────────────────────────── Shelters ─────────────────────────────
+
+//* Profile for both organisations (SHELTER) and individual rehomers (OWNER).
+model ShelterProfile {
+  id                 String             @id @default(uuid())
+  userId             String             @unique
+  type               ShelterType        @default(SHELTER)
+  name               String
+  slug               String             @unique
+  description        String?
+  logo               String?
+  coverImage         String?
+  email              String?
+  phone              String?
+  website            String?
+  address            String?
+  locationId         String?
+  lat                Float?
+  lng                Float?
+  timezone           String             @default("Asia/Dhaka")
+  verificationStatus VerificationStatus @default(PENDING)
+  verificationNote   String?
+  verifiedAt         DateTime?
+  verifiedById       String?
+  ratingAvg          Float              @default(0)
+  ratingCount        Int                @default(0)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  owner          User                  @relation("ShelterOwner", fields: [userId], references: [id], onDelete: Restrict)
+  verifiedBy     User?                 @relation("ShelterVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
+  location       Location?             @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  documents      ShelterDocument[]
+  members        ShelterMember[]
+  pets           Pet[]
+  reviews        Review[]
+  subscriptions  Subscription[]
+  availabilities ShelterAvailability[]
+  visitSlots     VisitSlot[]
+  stories        SuccessStory[]
+
+  @@index([verificationStatus])
+  @@index([locationId])
+  @@index([type])
+  @@map("shelter_profiles")
+}
+
+model ShelterDocument {
+  id        String   @id @default(uuid())
+  shelterId String
+  name      String
+  url       String
+  publicId  String?
+  mimeType  String?
+  size      Int?
+  createdAt DateTime @default(now())
+
+  shelter ShelterProfile @relation(fields: [shelterId], references: [id], onDelete: Cascade)
+
+  @@index([shelterId])
+  @@map("shelter_documents")
+}
+
+model ShelterMember {
+  id        String            @id @default(uuid())
+  shelterId String
+  userId    String
+  role      ShelterMemberRole @default(EDITOR)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  shelter ShelterProfile @relation(fields: [shelterId], references: [id], onDelete: Cascade)
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([shelterId, userId])
+  @@index([userId])
+  @@map("shelter_members")
+}
+
+// ───────────────────────────── Pets ─────────────────────────────
+
 model Pet {
-  id                   String   @id @default(uuid())
+  id                   String    @id @default(uuid())
   name                 String
+  //* Legacy cover image; PetMedia holds the gallery
   image                String
+  //* Legacy free-text columns (kept until lookups are fully adopted, then dropped)
   species              String
   breed                String
+  location             String
   color                String
+  colors               String[]  @default([])
   age                  Int
   gender               Gender
   size                 String
-  location             String
   description          String
   temperament          String
   medicalHistory       String
   adoptionRequirements String
   healthStatus         String
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  status               PetStatus @default(PUBLISHED)
+  speciesId            String?
+  breedId              String?
+  locationId           String?
+  lat                  Float?
+  lng                  Float?
+  featuredUntil        DateTime?
+  views                Int       @default(0)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  //* Define relationships
-  userId          String
-  user            User              @relation(fields: [userId], references: [id])
+  //* Creator (owner/shelter staff/admin). shelterId set when listed under a ShelterProfile.
+  userId    String
+  shelterId String?
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  shelter         ShelterProfile?   @relation(fields: [shelterId], references: [id], onDelete: SetNull)
+  speciesRef      Species?          @relation(fields: [speciesId], references: [id], onDelete: SetNull)
+  breedRef        Breed?            @relation(fields: [breedId], references: [id], onDelete: SetNull)
+  locationRef     Location?         @relation(fields: [locationId], references: [id], onDelete: SetNull)
   adoptionRequest AdoptionRequest[]
+  media           PetMedia[]
+  favorites       Favorite[]
+  conversations   Conversation[]
+  fees            PetFee[]
+  visitSlots      VisitSlot[]
+  visits          Visit[]
+  stories         SuccessStory[]
 
+  @@index([userId])
+  @@index([shelterId])
+  @@index([status, createdAt])
+  @@index([speciesId])
+  @@index([breedId])
+  @@index([locationId])
+  @@index([lat, lng])
+  @@index([featuredUntil])
   @@map("pets")
 }
+
+model PetMedia {
+  id        String    @id @default(uuid())
+  petId     String
+  type      MediaType @default(IMAGE)
+  url       String
+  publicId  String?
+  width     Int?
+  height    Int?
+  duration  Float?
+  order     Int       @default(0)
+  isCover   Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId, order])
+  @@map("pet_media")
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  petId     String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pet  Pet  @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, petId])
+  @@index([petId])
+  @@map("favorites")
+}
+
+//* Fee line items shown on pet detail ("what the fee covers").
+model PetFee {
+  id        String   @id @default(uuid())
+  petId     String
+  label     String
+  //* Minor units
+  amount    Int
+  currency  String   @default("BDT")
+  note      String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId, sortOrder])
+  @@map("pet_fees")
+}
+
+// ───────────────────────────── Adoption ─────────────────────────────
 
 model AdoptionRequest {
   id                     String        @id @default(uuid())
@@ -68,18 +298,32 @@ model AdoptionRequest {
   petOwnershipExperience String
   petsNeutered           OpinionOption @default(YES)
   secureOutdoorArea      OpinionOption @default(YES)
-  animalSleep            AnimelSleep
+  animalSleep            AnimalSleep
   animalAlonePeriodsTime OpinionOption @default(NO)
   detailsSupport         String
+  decisionNote           String?
+  decidedAt              DateTime?
+  decidedById            String?
+  isDisputed             Boolean       @default(false)
+  disputeReason          String?
+  disputedAt             DateTime?
   createdAt              DateTime      @default(now())
   updatedAt              DateTime      @updatedAt
 
-  //* Define relationships
-  user User @relation(fields: [userId], references: [id])
-  pet  Pet  @relation(fields: [petId], references: [id])
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pet           Pet            @relation(fields: [petId], references: [id], onDelete: Cascade)
+  decidedBy     User?          @relation("AdoptionDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  conversations Conversation[]
+  reviews       Review[]
 
+  @@unique([userId, petId])
+  @@index([petId, status])
+  @@index([status, createdAt])
+  @@index([isDisputed])
   @@map("adoptionrequests")
 }
+
+// ───────────────────────────── Content ─────────────────────────────
 
 model Blog {
   id          String     @id @default(uuid())
@@ -90,15 +334,16 @@ model Blog {
   tags        String[]
   category    String
   status      BlogStatus @default(DRAFT)
-  like       Int        @default(0)
+  like        Int        @default(0)
   publishedAt DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  //* Define relationships
   userId  String
-  author  User      @relation(fields: [userId], references: [id])
+  author  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   comment Comment[]
 
+  @@index([userId])
+  @@index([status, publishedAt])
   @@map("blogs")
 }
 
@@ -108,35 +353,529 @@ model Comment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  //* Define relationships
   blogId String
   userId String
-  blog   Blog   @relation(fields: [blogId], references: [id])
-  author User   @relation(fields: [userId], references: [id])
+  blog   Blog   @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([blogId])
+  @@index([userId])
   @@map("comments")
 }
 
 model Donation {
-  id         String   @id @default(uuid())
-  amount     Float
-  donorName  String
-  donorEmail String
-  message    String?
-  donatedAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id              String         @id @default(uuid())
+  //* Major units (legacy Float)
+  amount          Float
+  currency        String         @default("USD")
+  status          DonationStatus @default(PENDING)
+  paymentIntentId String?        @unique
+  donorName       String
+  donorEmail      String
+  message         String?
+  donatedAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
-  //* Define relationships
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id])
+  userId   String?
+  user     User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  payments Payment[]
 
+  @@index([userId])
+  @@index([status, donatedAt])
   @@map("donations")
 }
+
+model SuccessStory {
+  id               String      @id @default(uuid())
+  shelterId        String
+  petId            String?
+  authorId         String?
+  speciesId        String?
+  title            String
+  excerpt          String?
+  body             String
+  family           String?
+  city             String?
+  adoptedOn        DateTime?
+  beforeImage      String?
+  afterImage       String?
+  consentConfirmed Boolean     @default(false)
+  status           StoryStatus @default(DRAFT)
+  moderationNote   String?
+  moderatedById    String?
+  moderatedAt      DateTime?
+  publishedAt      DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  shelter     ShelterProfile      @relation(fields: [shelterId], references: [id], onDelete: Cascade)
+  pet         Pet?                @relation(fields: [petId], references: [id], onDelete: SetNull)
+  author      User?               @relation("StoryAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  species     Species?            @relation(fields: [speciesId], references: [id], onDelete: SetNull)
+  moderatedBy User?               @relation("StoryModeratedBy", fields: [moderatedById], references: [id], onDelete: SetNull)
+  media       SuccessStoryMedia[]
+
+  @@index([status, publishedAt])
+  @@index([shelterId])
+  @@index([speciesId])
+  @@map("success_stories")
+}
+
+model SuccessStoryMedia {
+  id        String    @id @default(uuid())
+  storyId   String
+  type      MediaType @default(IMAGE)
+  url       String
+  publicId  String?
+  caption   String?
+  order     Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  story SuccessStory @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@index([storyId, order])
+  @@map("success_story_media")
+}
+
+// ───────────────────────────── Chat & notifications ─────────────────────────────
+
+model Conversation {
+  id                String    @id @default(uuid())
+  petId             String?
+  adoptionRequestId String?
+  lastMessageAt     DateTime?
+  //* Flagged for admin dispute review (admins may read flagged conversations)
+  isFlagged         Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  pet             Pet?                      @relation(fields: [petId], references: [id], onDelete: SetNull)
+  adoptionRequest AdoptionRequest?          @relation(fields: [adoptionRequestId], references: [id], onDelete: SetNull)
+  participants    ConversationParticipant[]
+  messages        Message[]
+
+  @@index([petId])
+  @@index([adoptionRequestId])
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String    @id @default(uuid())
+  conversationId String
+  userId         String
+  lastReadAt     DateTime?
+  isMuted        Boolean   @default(false)
+  joinedAt       DateTime  @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String    @id @default(uuid())
+  conversationId String
+  //* Null when the sender account was removed (history kept)
+  senderId       String?
+  body           String
+  attachments    Json?
+  editedAt       DateTime?
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User?        @relation(fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@map("messages")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType @default(SYSTEM)
+  title     String
+  body      String
+  link      String?
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+model PushToken {
+  id         String         @id @default(uuid())
+  userId     String
+  token      String         @unique
+  platform   DevicePlatform
+  lastUsedAt DateTime       @default(now())
+  createdAt  DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_tokens")
+}
+
+// ───────────────────────────── Moderation ─────────────────────────────
+
+//* Polymorphic target: (targetType, targetId) points at a pet, user, shelter, message or review.
+model Report {
+  id             String           @id @default(uuid())
+  reporterId     String?
+  targetType     ReportTargetType
+  targetId       String
+  reason         String
+  details        String?
+  status         ReportStatus     @default(OPEN)
+  //* e.g. WARN, HIDE_LISTING, SUSPEND_USER (free text so moderators can extend)
+  action         String?
+  resolutionNote String?
+  resolvedById   String?
+  resolvedAt     DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  reporter   User? @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: SetNull)
+  resolvedBy User? @relation("ReportResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([targetType, targetId])
+  @@index([reporterId])
+  @@map("reports")
+}
+
+//* Review of a shelter/owner (shelterId) or of an adopter (targetUserId), tied to a completed adoption.
+model Review {
+  id                String       @id @default(uuid())
+  authorId          String
+  adoptionRequestId String?
+  shelterId         String?
+  targetUserId      String?
+  rating            Int
+  comment           String?
+  status            ReviewStatus @default(PUBLISHED)
+  hiddenReason      String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  author          User             @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  adoptionRequest AdoptionRequest? @relation(fields: [adoptionRequestId], references: [id], onDelete: SetNull)
+  shelter         ShelterProfile?  @relation(fields: [shelterId], references: [id], onDelete: Cascade)
+  targetUser      User?            @relation("ReviewTargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@unique([authorId, adoptionRequestId])
+  @@index([shelterId, status])
+  @@index([targetUserId])
+  @@map("reviews")
+}
+
+// ───────────────────────────── Billing ─────────────────────────────
+
+model Plan {
+  id                   String   @id @default(uuid())
+  //* Stable key: "free" | "pro" | "premium"
+  code                 String   @unique
+  name                 String
+  description          String?
+  //* Minor units (cents)
+  priceMonthly         Int      @default(0)
+  priceYearly          Int      @default(0)
+  currency             String   @default("USD")
+  stripeProductId      String?
+  stripePriceMonthlyId String?  @unique
+  stripePriceYearlyId  String?  @unique
+  maxListings          Int
+  maxMediaPerListing   Int
+  maxFeatured          Int
+  maxMembers           Int
+  analytics            Boolean  @default(false)
+  isActive             Boolean  @default(true)
+  sortOrder            Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id                   String             @id @default(uuid())
+  userId               String
+  shelterId            String?
+  planId               String
+  status               SubscriptionStatus @default(INCOMPLETE)
+  interval             BillingInterval    @default(MONTH)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?            @unique
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  canceledAt           DateTime?
+  trialEnd             DateTime?
+  //* Set when an admin assigns a plan manually (audit-logged)
+  isManualOverride     Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  shelter  ShelterProfile? @relation(fields: [shelterId], references: [id], onDelete: SetNull)
+  plan     Plan            @relation(fields: [planId], references: [id], onDelete: Restrict)
+  payments Payment[]
+
+  @@index([userId, status])
+  @@index([status, currentPeriodEnd])
+  @@index([planId])
+  @@map("subscriptions")
+}
+
+//* Every money movement (subscription invoices, donations, later adoption fees). Admin "transactions" = these rows.
+model Payment {
+  id                    String        @id @default(uuid())
+  userId                String?
+  subscriptionId        String?
+  donationId            String?
+  type                  PaymentType
+  //* Minor units
+  amount                Int
+  currency              String        @default("USD")
+  status                PaymentStatus @default(PENDING)
+  stripePaymentIntentId String?       @unique
+  stripeInvoiceId       String?       @unique
+  stripeChargeId        String?
+  description           String?
+  failureReason         String?
+  paidAt                DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  donation     Donation?     @relation(fields: [donationId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([userId])
+  @@index([subscriptionId])
+  @@index([type, status])
+  @@map("payments")
+}
+
+//* Processed Stripe webhook events (idempotency).
+model StripeEvent {
+  id          String    @id
+  type        String
+  payload     Json?
+  processedAt DateTime?
+  error       String?
+  createdAt   DateTime  @default(now())
+
+  @@index([type])
+  @@map("stripe_events")
+}
+
+// ───────────────────────────── Lookups / CMS / settings ─────────────────────────────
+
+model Species {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  icon      String?
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  breeds  Breed[]
+  pets    Pet[]
+  stories SuccessStory[]
+
+  @@map("species")
+}
+
+model Breed {
+  id        String   @id @default(uuid())
+  speciesId String
+  name      String
+  slug      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  species Species @relation(fields: [speciesId], references: [id], onDelete: Restrict)
+  pets    Pet[]
+
+  @@unique([speciesId, slug])
+  @@map("breeds")
+}
+
+model Location {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  city      String?
+  region    String?
+  country   String   @default("Bangladesh")
+  lat       Float?
+  lng       Float?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pets     Pet[]
+  shelters ShelterProfile[]
+
+  @@index([name])
+  @@map("locations")
+}
+
+model Faq {
+  id          String   @id @default(uuid())
+  question    String
+  answer      String
+  category    String?
+  sortOrder   Int      @default(0)
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished, sortOrder])
+  @@map("faqs")
+}
+
+model Page {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  title       String
+  body        String
+  isPublished Boolean  @default(true)
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  updatedBy User? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("pages")
+}
+
+model Setting {
+  key         String   @id
+  value       Json
+  description String?
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+
+  updatedBy User? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("settings")
+}
+
+model AuditLog {
+  id        String    @id @default(uuid())
+  actorId   String?
+  actorRole UserRole?
+  action    String
+  entity    String
+  entityId  String?
+  meta      Json?
+  ip        String?
+  createdAt DateTime  @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ───────────────────────────── Visits (§8.1) ─────────────────────────────
+
+//* Weekly template a shelter edits; concrete VisitSlot rows are generated from it.
+model ShelterAvailability {
+  id        String   @id @default(uuid())
+  shelterId String
+  //* 0 = Monday … 6 = Sunday
+  weekday   Int
+  isOpen    Boolean  @default(true)
+  //* "HH:mm" local times in the shelter timezone
+  times     String[] @default([])
+  capacity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shelter ShelterProfile @relation(fields: [shelterId], references: [id], onDelete: Cascade)
+
+  @@unique([shelterId, weekday])
+  @@map("shelter_availabilities")
+}
+
+model VisitSlot {
+  id          String   @id @default(uuid())
+  shelterId   String
+  //* Null = slot valid for any of the shelter's pets
+  petId       String?
+  startsAt    DateTime
+  endsAt      DateTime
+  capacity    Int      @default(1)
+  bookedCount Int      @default(0)
+  timezone    String   @default("Asia/Dhaka")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  shelter ShelterProfile @relation(fields: [shelterId], references: [id], onDelete: Cascade)
+  pet     Pet?           @relation(fields: [petId], references: [id], onDelete: Cascade)
+  visits  Visit[]
+
+  @@index([shelterId, startsAt])
+  @@index([petId, startsAt])
+  @@map("visit_slots")
+}
+
+model Visit {
+  id             String      @id @default(uuid())
+  slotId         String
+  userId         String
+  petId          String
+  status         VisitStatus @default(REQUESTED)
+  note           String?
+  cancelReason   String?
+  decidedAt      DateTime?
+  reminderSentAt DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  slot VisitSlot @relation(fields: [slotId], references: [id], onDelete: NoAction)
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pet  Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, slotId])
+  @@index([petId, status])
+  @@index([userId, status])
+  @@index([slotId, status])
+  @@map("visits")
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
 
 enum UserRole {
   SUPER_ADMIN
   ADMIN
   USER
+  OWNER
+  SHELTER
+  SHELTER_MEMBER
 }
 
 enum UserStatus {
@@ -145,10 +884,17 @@ enum UserStatus {
   DELETED
 }
 
+enum AuthProvider {
+  CREDENTIALS
+  GOOGLE
+}
+
 enum RequestStatus {
   PENDING
   APPROVED
   REJECTED
+  WITHDRAWN
+  COMPLETED
 }
 
 enum Gender {
@@ -157,7 +903,7 @@ enum Gender {
   Unknown
 }
 
-enum AnimelSleep {
+enum AnimalSleep {
   Outdoor
   Indoor
   Room
@@ -173,4 +919,124 @@ enum OpinionOption {
 enum BlogStatus {
   DRAFT
   PUBLISHED
+}
+
+enum PetStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  PENDING
+  ADOPTED
+  REMOVED
+}
+
+enum ShelterType {
+  SHELTER
+  OWNER
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum ShelterMemberRole {
+  MANAGER
+  EDITOR
+  VIEWER
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum DonationStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum StoryStatus {
+  DRAFT
+  PENDING
+  PUBLISHED
+  REJECTED
+}
+
+enum NotificationType {
+  SYSTEM
+  APPLICATION
+  MESSAGE
+  VISIT
+  VERIFICATION
+  REPORT
+  REVIEW
+  SUBSCRIPTION
+  PAYMENT
+  STORY
+  LISTING
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+  WEB
+}
+
+enum ReportTargetType {
+  PET
+  USER
+  SHELTER
+  MESSAGE
+  REVIEW
+}
+
+enum ReportStatus {
+  OPEN
+  DISMISSED
+  ACTIONED
+}
+
+enum ReviewStatus {
+  PUBLISHED
+  HIDDEN
+}
+
+enum SubscriptionStatus {
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+}
+
+enum BillingInterval {
+  MONTH
+  YEAR
+}
+
+enum PaymentType {
+  SUBSCRIPTION
+  DONATION
+  ADOPTION_FEE
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum VisitStatus {
+  REQUESTED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
 }

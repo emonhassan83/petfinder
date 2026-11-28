@@ -2,13 +2,13 @@
 
 import { Box, IconButton } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import Image from "next/image";
+import Thumb from "@/components/Dashboard/Common/Thumb";
+import { useAdminGetBlogsQuery } from "@/redux/api/adminApi";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import { useState } from "react";
 import {
   useDeleteBlogMutation,
-  useGetAllBlogsQuery,
 } from "@/redux/api/blogApi";
 import { toast } from "sonner";
 import UpdateBlogModal from "./components/UpdateBlogModal";
@@ -18,7 +18,7 @@ import Meta from "@/components/Meta/MetaData";
 const ManageBlogsPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBlog, setSelectedBlog] = useState(null);
-  const { data, isLoading } = useGetAllBlogsQuery([]);
+  const { data, isLoading } = useAdminGetBlogsQuery({});
   const [deleteBlog] = useDeleteBlogMutation();
 
   const handleEditClick = (blog: any) => {
@@ -68,9 +68,7 @@ const ManageBlogsPage = () => {
       flex: 1,
       renderCell: ({ row }) => {
         return (
-          <Box>
-            <Image src={row.image} width={40} height={40} alt="Pet Image" />
-          </Box>
+          <Thumb src={row.image} alt={row.title} />
         );
       },
     },
@@ -121,7 +119,7 @@ const ManageBlogsPage = () => {
         {!isLoading ? (
           <Box my={2}>
             <DataGrid
-              rows={data ?? []}
+              rows={data?.items ?? []}
               columns={columns}
               initialState={{
                 pagination: {

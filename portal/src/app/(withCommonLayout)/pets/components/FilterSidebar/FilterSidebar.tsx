@@ -1,7 +1,9 @@
 import { Box, Button, Chip, MenuItem, TextField, Typography } from "@mui/material";
 import TuneIcon from "@mui/icons-material/Tune";
+import { usePubGetBreedsQuery, usePubGetLocationsQuery, usePubGetSpeciesQuery } from "@/redux/api/lookupApi";
 
-const breedOptions = ["Labrador", "Golden Retriever", "Beagle", "Corgi", "Pug", "Jack Russell", "Siberian Husky", "Tabby", "Siamese", "Maine Coon", "Domestic Shorthair", "Holland Lop"];
+//* Offline fallback; live options come from /lookups/breeds
+const fallbackBreeds = ["Labrador", "Golden Retriever", "Beagle", "Corgi", "Pug", "Jack Russell", "Siberian Husky", "Tabby", "Siamese", "Maine Coon", "Domestic Shorthair", "Holland Lop"];
 const sizeOptions = ["Small", "Medium", "Large"];
 //* Coat colour swatches (Pawvelle-style colour picker). `swatch` is a CSS background; matching is by keyword (see matchesColor).
 export const colorOptions: { name: string; swatch: string }[] = [
@@ -23,7 +25,7 @@ export const matchesColor = (petColor: string | undefined, filter: string) => {
 };
 const genderOptions = ["Male", "Female"];
 
-export const emptyFilters = { species: "", breed: "", age: "", size: "", color: "", gender: "" };
+export const emptyFilters = { species: "", breed: "", locationId: "", age: "", size: "", color: "", gender: "" };
 
 const ChipGroup = ({ label, name, options, value, onPick }: { label: string; name: string; options: string[]; value: string; onPick: (n: string, v: string) => void }) => (
   <Box sx={{ mt: 2.5 }}>
@@ -51,6 +53,11 @@ const ChipGroup = ({ label, name, options, value, onPick }: { label: string; nam
 const FilterSidebar = ({ filters, setFilters }: { filters: any; setFilters: React.Dispatch<React.SetStateAction<any>> }) => {
   const set = (name: string, value: string) => setFilters((prev: any) => ({ ...prev, [name]: value }));
   const active = Object.entries(filters).filter(([k, v]) => k !== "species" && v).length;
+  const { data: species = [] } = usePubGetSpeciesQuery();
+  const speciesId = species.find((sp: any) => sp.name === filters.species)?.id;
+  const { data: breeds, isError: breedsOffline } = usePubGetBreedsQuery(speciesId ? { speciesId } : undefined);
+  const { data: locations = [] } = usePubGetLocationsQuery();
+  const breedOptions: string[] = breeds && !breedsOffline ? breeds.map((b: any) => b.name) : fallbackBreeds;
 
   return (
     <Box
@@ -87,6 +94,17 @@ const FilterSidebar = ({ filters, setFilters }: { filters: any; setFilters: Reac
           </MenuItem>
         ))}
       </TextField>
+
+      {locations.length > 0 && (
+        <TextField select fullWidth size="small" label="Location" value={filters.locationId} onChange={(e) => set("locationId", e.target.value)} sx={{ mt: 2 }}>
+          <MenuItem value="">Anywhere</MenuItem>
+          {locations.map((l: any) => (
+            <MenuItem key={l.id} value={l.id}>
+              {l.name}
+            </MenuItem>
+          ))}
+        </TextField>
+      )}
 
       <TextField
         fullWidth

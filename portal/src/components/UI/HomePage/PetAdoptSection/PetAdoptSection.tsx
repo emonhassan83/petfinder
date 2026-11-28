@@ -9,27 +9,26 @@ import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import Image from "next/image";
 import Link from "next/link";
 import { previewPets } from "@/mock/pets";
+import { fetchPublic, normalizePet } from "@/lib/apiData";
 import FavoriteButton from "../../FavoriteButton";
 import QuickViewDrawer, { QuickViewPet } from "../../QuickViewDrawer";
 
 type FeaturedPet = QuickViewPet & { species: string; gender: string };
 
-//* "Pets available for adoption nearby" carousel: API pets when available, preview pets otherwise.
+//* "Pets available for adoption nearby" carousel: featured-first API pets; preview pets only when the API is unreachable.
 const PetAdoptSection = () => {
-  const [pets, setPets] = useState<FeaturedPet[]>(previewPets);
+  const [pets, setPets] = useState<FeaturedPet[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [active, setActive] = useState(0);
   const [quick, setQuick] = useState<FeaturedPet | null>(null);
   const track = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_BACKEND_API_URL;
-    if (!url) return;
-    fetch(`${url}/pets?limit=8`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d?.data?.length) setPets(d.data);
-      })
-      .catch(() => {});
+    fetchPublic<any[]>("/pets?limit=8").then((res) => {
+      if (res === "offline") setPets(previewPets);
+      else setPets((res?.data ?? []).map(normalizePet) as FeaturedPet[]);
+      setLoaded(true);
+    });
   }, []);
 
   const cardWidth = () => {
@@ -46,6 +45,8 @@ const PetAdoptSection = () => {
     if (!track.current) return;
     setActive(Math.round(track.current.scrollLeft / cardWidth()));
   };
+
+  if (loaded && pets.length === 0) return null;
 
   return (
     <Container component="section" sx={{ py: { xs: 5, md: 8 } }} aria-labelledby="featured-pets">

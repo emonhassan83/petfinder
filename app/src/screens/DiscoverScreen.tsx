@@ -1,11 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, FlatList, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 import { Text, TextInput } from "../components/Text";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors, fonts, radius, shadow } from "../theme";
-import { pets, shelters, stories } from "../data/mock";
+import { fetchPets, fetchShelters, fetchStories } from "../api/api";
+import { Pet } from "../api/types";
+import { useAsync } from "../hooks/useAsync";
+import { ErrorView, LoadingView } from "../components/Async";
 import { StoryCard } from "./StoriesScreen";
 import { PetCard } from "../components/PetCard";
 import { useAppState } from "../state/AppState";
@@ -21,11 +24,20 @@ const Chip = ({ label, on, onPress }: { label: string; on: boolean; onPress: () 
   </Pressable>
 );
 
+const COAT_COLORS = ["Black", "White", "Brown", "Grey", "Golden", "Cream", "Orange"];
+const PAGE = 12;
+
+//* Inline state for a horizontal row (loading / error / empty)
+const RowState = ({ loading, error, empty, onRetry }: { loading: boolean; error: string | null; empty: string; onRetry: () => void }) =>
+  loading ? <LoadingView /> : error ? <ErrorView message={error} onRetry={onRetry} /> : <Text style={styles.empty}>{empty}</Text>;
+
 export const DiscoverScreen = () => {
   const nav = useNavigation<any>();
   const { width } = useWindowDimensions();
-  const { prefs, setPrefs } = useAppState();
+  const { prefs, setPrefs, user } = useAppState();
   const [query, setQuery] = useState("");
+  const [term, setTerm] = useState("");
+  const [colour, setColour] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const fade = useRef(new Animated.Value(0)).current;
 
@@ -33,17 +45,52 @@ export const DiscoverScreen = () => {
     Animated.timing(fade, { toValue: 1, duration: 450, useNativeDriver: true }).start();
   }, [fade]);
 
-  const activeFilters = prefs.species.length + prefs.genders.length;
+  //* Debounce the search box so we do not hit the API on every keystroke
+  useEffect(() => {
+    const t = setTimeout(() => setTerm(query.trim()), 350);
+    return () => clearTimeout(t);
+  }, [query]);
 
-  const data = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return pets.filter(
-      (p) =>
-        (p.species === "Rabbit" || prefs.species.includes(p.species)) &&
-        prefs.genders.includes(p.gender) &&
-        (!q || `${p.name} ${p.breed} ${p.location}`.toLowerCase().includes(q))
-    );
-  }, [query, prefs]);
+  const activeFilters = prefs.species.length + prefs.genders.length + (colour ? 1 : 0);
+
+  //* Onboarding prefs -> API filters: a single species / gender is sent; both selected means "any"
+  const species = prefs.species.length === 1 ? prefs.species[0] : undefined;
+  const gender = prefs.genders.length === 1 ? prefs.genders[0] : undefined;
+  const filterKey = [species, gender, colour, term].join("|");
+
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [petsLoading, setPetsLoading] = useState(true);
+  const [petsError, setPetsError] = useState<string | null>(null);
+  const reqId = useRef(0);
+
+  const loadPets = useCallback(async (nextPage: number) => {
+    const id = ++reqId.current;
+    setPetsLoading(true);
+    setPetsError(null);
+    try {
+      const res = await fetchPets({ species, gender, colors: colour ? [colour] : undefined, searchTerm: term || undefined, page: nextPage, limit: PAGE });
+      if (id !== reqId.current) return;
+      setPets((prev) => (nextPage === 1 ? res.items : [...prev, ...res.items]));
+      setTotal(res.total);
+      setPage(nextPage);
+    } catch (e: any) {
+      if (id === reqId.current) setPetsError(e?.message ?? "Could not load pets");
+    } finally {
+      if (id === reqId.current) setPetsLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKey]);
+
+  useEffect(() => { loadPets(1); }, [loadPets]);
+
+  const sheltersState = useAsync(fetchShelters, []);
+  const storiesState = useAsync(fetchStories, []);
+  const shelters = sheltersState.data ?? [];
+  const stories = storiesState.data ?? [];
+  const featured = pets.slice(0, 6);
+  const more = pets.slice(6);
 
   const toggle = (key: "species" | "genders", v: string) => {
     const list = prefs[key];
@@ -61,7 +108,7 @@ export const DiscoverScreen = () => {
           <View style={styles.header}>
             <View style={styles.titleRow}>
               <View>
-                <Text style={styles.hello}>Hello there,</Text>
+                <Text style={styles.hello}>{user ? `Hello, ${user.name.split(" ")[0]}` : "Hello there,"}</Text>
                 <Text style={styles.title}>Pets waiting for you</Text>
               </View>
               <Pressable onPress={() => nav.navigate("Profile")} accessibilityRole="button" accessibilityLabel="Profile" style={styles.avatar}>
@@ -75,7 +122,7 @@ export const DiscoverScreen = () => {
                 <TextInput
                   value={query}
                   onChangeText={setQuery}
-                  placeholder={prefs.location || "Search name, breed or area"}
+                  placeholder={prefs.location ? `Search ${prefs.location}, name or breed` : "Search name, breed or area"}
                   placeholderTextColor={colors.ink}
                   style={styles.searchInput}
                   returnKeyType="search"
@@ -104,6 +151,9 @@ export const DiscoverScreen = () => {
                 {["Male", "Female"].map((g) => (
                   <Chip key={g} label={g} on={prefs.genders.includes(g)} onPress={() => toggle("genders", g)} />
                 ))}
+                {COAT_COLORS.map((c) => (
+                  <Chip key={c} label={c} on={colour === c} onPress={() => setColour(colour === c ? null : c)} />
+                ))}
                 <Pressable onPress={() => nav.navigate("Onboarding")} accessibilityRole="button">
                   <Text style={styles.link}>More preferences</Text>
                 </Pressable>
@@ -116,13 +166,13 @@ export const DiscoverScreen = () => {
             <Text style={styles.section}>Needing your affection</Text>
             <FlatList
               horizontal
-              data={data}
+              data={featured}
               keyExtractor={(p) => p.id}
               showsHorizontalScrollIndicator={false}
               snapToInterval={width * 0.66 + 16}
               decelerationRate="fast"
               contentContainerStyle={{ paddingHorizontal: 20, gap: 16 }}
-              ListEmptyComponent={<Text style={styles.empty}>No pets match. Try another filter.</Text>}
+              ListEmptyComponent={<View style={{ width: width - 40 }}><RowState loading={petsLoading} error={petsError} empty="No pets match. Try another filter." onRetry={() => loadPets(1)} /></View>}
               renderItem={({ item }) => <PetCard pet={item} width={width * 0.66} onPress={() => open(item.id)} />}
             />
 
@@ -138,6 +188,7 @@ export const DiscoverScreen = () => {
               keyExtractor={(s) => s.id}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: 20, gap: 14, paddingBottom: 8 }}
+              ListEmptyComponent={<View style={{ width: width - 40 }}><RowState loading={storiesState.loading} error={storiesState.error} empty="Adoption stories will appear here." onRetry={storiesState.reload} /></View>}
               renderItem={({ item }) => (
                 <View style={{ width: 170 }}>
                   <StoryCard story={item} height={150} onPress={() => nav.navigate("Stories", { id: item.id })} />
@@ -152,28 +203,36 @@ export const DiscoverScreen = () => {
               keyExtractor={(s) => s.id}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: 20, gap: 14, paddingBottom: 8 }}
+              ListEmptyComponent={<View style={{ width: width - 40 }}><RowState loading={sheltersState.loading} error={sheltersState.error} empty="No verified shelters yet." onRetry={sheltersState.reload} /></View>}
               renderItem={({ item }) => (
                 <View style={[styles.shelter, shadow]}>
-                  <View style={[styles.shelterLogo, { backgroundColor: item.tint }]}>
-                    <Ionicons name={item.icon} size={22} color={colors.primaryDark} />
+                  <View style={[styles.shelterLogo, { backgroundColor: colors.primaryLight }]}>
+                    <Ionicons name="home" size={22} color={colors.primaryDark} />
                   </View>
                   <View>
                     <Text style={styles.shelterName}>
                       {item.name} {item.verified && <MaterialCommunityIcons name="check-decagram" size={14} color={colors.male} />}
                     </Text>
                     <Text style={styles.shelterMeta}>
-                      <Ionicons name="location-outline" size={12} /> {item.distanceKm} km from you
+                      <Ionicons name="location-outline" size={12} /> {[item.location, `${item.petsCount} pets`].filter(Boolean).join(" · ")}
                     </Text>
                   </View>
                 </View>
               )}
             />
 
-            <Text style={styles.section}>Near you</Text>
+            {more.length > 0 && <Text style={styles.section}>More pets</Text>}
             <View style={{ paddingHorizontal: 20, gap: 12 }}>
-              {data.map((p) => (
+              {more.map((p) => (
                 <PetCard key={p.id} pet={p} onPress={() => open(p.id)} />
               ))}
+              {petsError && pets.length > 0 ? <ErrorView message={petsError} onRetry={() => loadPets(page)} /> : null}
+              {pets.length < total && !petsLoading ? (
+                <Pressable onPress={() => loadPets(page + 1)} accessibilityRole="button" style={styles.more}>
+                  <Text style={styles.link}>Load more</Text>
+                </Pressable>
+              ) : null}
+              {petsLoading && pets.length > 0 ? <LoadingView /> : null}
             </View>
           </View>
         </ScrollView>
@@ -202,6 +261,7 @@ const styles = StyleSheet.create({
   sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 8, paddingBottom: 32, minHeight: 600 },
   section: { color: colors.ink, fontSize: 19, fontFamily: fonts.heading, marginTop: 22, marginBottom: 14, paddingHorizontal: 20 },
   empty: { color: colors.slate, paddingVertical: 40 },
+  more: { minHeight: 44, alignItems: "center", justifyContent: "center" },
   sectionRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 22, marginBottom: 14, paddingRight: 20 },
   seeAll: { minHeight: 44, justifyContent: "center" },
   shelter: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: colors.white, borderRadius: radius.md, padding: 14, paddingRight: 22 },

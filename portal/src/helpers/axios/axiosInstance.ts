@@ -1,67 +1,95 @@
+import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { authKey } from "@/constant/authKey";
-import setAccessToken from "@/services/actions/setAccessToken";
-import { getNewAccessToken } from "@/services/auth.services";
-import { IGenericErrorResponse, ResponseSuccessType } from "@/types";
-import { getFromLocalStorage, setToLocalStorage } from "@/utils/localStorege";
-import axios from "axios";
+import { getNewAccessToken, removeUser, storeUserInfo } from "@/services/auth.services";
+import { ResponseSuccessType } from "@/types";
+import { getFromLocalStorage } from "@/utils/localStorege";
+import { decodedToken } from "@/utils/jwt";
 
-const instance = axios.create();
+//* withCredentials so the API's httpOnly refresh cookie travels with refresh/logout calls
+const instance = axios.create({ withCredentials: true, timeout: 60000 });
 instance.defaults.headers.post["Content-Type"] = "application/json";
 instance.defaults.headers["Accept"] = "application/json";
-instance.defaults.timeout = 60000;
 
-// Add a request interceptor
-instance.interceptors.request.use(
-  function (config) {
-    // Do something before request is sent
-    const accessToken = getFromLocalStorage(authKey);
-    if (accessToken) {
-      config.headers.Authorization = accessToken;
-    }
-    return config;
-  },
-  function (error) {
-    // Do something with request error
-    return Promise.reject(error);
+//* One refresh at a time: concurrent 401s wait on the same promise.
+let refreshing: Promise<string | null> | null = null;
+
+const refreshOnce = () => {
+  if (!refreshing) {
+    refreshing = getNewAccessToken()
+      .then((token) => {
+        if (token) storeUserInfo({ accessToken: token });
+        else removeUser();
+        return token;
+      })
+      .finally(() => {
+        refreshing = null;
+      });
   }
-);
+  return refreshing;
+};
 
-// Add a response interceptor
+const NO_REFRESH = ["/auth/login", "/auth/refresh-token", "/auth/logout", "/user/register"];
+
+//* Seconds until the stored token expires (0 when unknown/invalid)
+const secondsLeft = (token: string) => {
+  try {
+    const { exp } = decodedToken(token) as { exp?: number };
+    return exp ? exp - Math.floor(Date.now() / 1000) : 0;
+  } catch {
+    return 0;
+  }
+};
+
+instance.interceptors.request.use(async (config) => {
+  let accessToken = getFromLocalStorage(authKey);
+  const url = config.url || "";
+  //* Refresh shortly before expiry so the middleware cookie never goes stale during active use
+  if (accessToken && secondsLeft(accessToken) < 60 && !NO_REFRESH.some((path) => url.includes(path))) {
+    accessToken = (await refreshOnce()) || accessToken;
+  }
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
+  }
+  return config;
+});
+type RetryConfig = InternalAxiosRequestConfig & { _retried?: boolean };
+
 instance.interceptors.response.use(
-  //@ts-ignore
+  //@ts-ignore -- unwrap the API envelope to { data, meta } for RTK Query
   function (response) {
-    // Any status code that lie within the range of 2xx cause this function to trigger
-    // Do something with response data
     const responseObject: ResponseSuccessType = {
       data: response?.data?.data,
       meta: response?.data?.meta,
     };
     return responseObject;
   },
-  async function (error) {
-    const config = error.config;
-    if ((error?.response?.status === 401 || error?.response?.status === 500) && !config?.sent) {
-      config.sent = true;
-      
-      const response = await getNewAccessToken();
-      const accessToken = response?.data?.accessToken;
-  
-      config.headers["Authorization"] = accessToken;
-      setToLocalStorage(authKey, accessToken);
-      setAccessToken(accessToken); //* set access token to cookie
-      
-      return instance(config);
-    } else {
-      // Do something with response error
-      const responseObject: IGenericErrorResponse = {
-        statusCode: error?.response?.data?.statusCode || 500,
-        message: error?.response?.data?.message || "Something went wrong!!!",
-        errorMessages: error?.response?.data?.message,
-      };
-      // return Promise.reject(error);
-      return responseObject;
+  async function (error: AxiosError) {
+    const config = error.config as RetryConfig | undefined;
+    const url = config?.url || "";
+    const hadToken = !!getFromLocalStorage(authKey);
+
+    if (
+      error.response?.status === 401 &&
+      config &&
+      !config._retried &&
+      hadToken &&
+      !NO_REFRESH.some((path) => url.includes(path))
+    ) {
+      config._retried = true;
+      const token = await refreshOnce();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+        return instance(config);
+      }
     }
+    return Promise.reject(error);
   }
 );
+
+//* Normalised error for callers outside RTK Query
+export const apiErrorMessage = (err: unknown, fallback = "Something went wrong!") => {
+  const e = err as any;
+  return e?.data?.message || e?.response?.data?.message || e?.message || fallback;
+};
 
 export { instance };

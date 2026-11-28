@@ -25,9 +25,10 @@ export const adoptionRequestApi = baseApi.injectEndpoints({
     }),
 
     getMyAdoptionRequests: build.query({
-      query: () => ({
+      query: (params?: Record<string, any>) => ({
         url: "/adoption-requests/my-adoption",
         method: "GET",
+        params: { limit: 50, ...(params || {}) },
       }),
       providesTags: [tagTypes.adoptionRequest],
     }),
@@ -50,6 +51,15 @@ export const adoptionRequestApi = baseApi.injectEndpoints({
       invalidatesTags: [tagTypes.adoptionRequest],
     }),
 
+    //* Applicant withdraws a PENDING/APPROVED application
+    withdrawMyAdoptionRequest: build.mutation<unknown, string>({
+      query: (id) => ({
+        url: `/adoption-requests/${id}/withdraw`,
+        method: "PATCH",
+      }),
+      invalidatesTags: [tagTypes.adoptionRequest],
+    }),
+
     deleteAdoptionRequest: build.mutation({
       query: (id) => ({
         url: `/adoption-requests/${id}`,
@@ -67,4 +77,5 @@ export const {
   useUpdateAdoptionRequestMutation,
   useUpdateAdoptionRequestStatusMutation,
   useDeleteAdoptionRequestMutation,
+  useWithdrawMyAdoptionRequestMutation,
 } = adoptionRequestApi;

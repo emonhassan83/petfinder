@@ -1,27 +1,21 @@
-const uploadImageToImgbb = async (file: File) => {
-    const url = `https://api.imgbb.com/1/upload?key=${process.env.NEXT_PUBLIC_IMGBB_KEY}`;
+import { instance } from "@/helpers/axios/axiosInstance";
+import { API_URL } from "@/lib/apiData";
 
-    const formData = new FormData();
-    formData.append("image", file);
-  
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        body: formData,
-      });
-      const imageData = await response.json();
-      if (imageData.status === 200) {
-        const imageUrl = imageData?.data?.display_url;
-        return imageUrl;
-      } else {
-        console.error("Error uploading image:", imageData);
-        // throw new Error(imageData.error);
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      throw error;
-    }
-  };
-  
-  export default uploadImageToImgbb;
-  
+//* Uploads one image through the API (POST /media/upload, multipart field `file`; signed Cloudinary
+//* upload on the server). Returns the hosted URL. Throws with the API message on failure
+//* (503 when media storage is not configured, 400 for unsupported/oversized files).
+const uploadImage = async (file: File): Promise<string> => {
+  const form = new FormData();
+  form.append("file", file);
+  try {
+    //* the instance unwraps the envelope to { data, meta }
+    const res: any = await instance.post(`${API_URL}/media/upload`, form);
+    const url = res?.data?.url;
+    if (!url) throw new Error("Upload failed");
+    return url;
+  } catch (err: any) {
+    throw new Error(err?.response?.data?.message || err?.message || "Upload failed");
+  }
+};
+
+export default uploadImage;

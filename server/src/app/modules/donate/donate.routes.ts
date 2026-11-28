@@ -1,44 +1,41 @@
 import express from "express";
 import validateRequest from "../../middlewares/validateRequest";
-import auth from "../../middlewares/auth";
-import { UserRole } from "@prisma/client";
+import auth, { optionalAuth } from "../../middlewares/auth";
 import { donateController } from "./donate.controller";
 import { donationValidation } from "./donate.validation";
+import { ROLES } from "../../../shared/roles";
 
 const router = express.Router();
 
+router.post("/", auth(...ROLES.ALL), validateRequest(donationValidation.createDonationSchema), donateController.createDonation);
+
+//* Stripe Checkout (mode payment). Guests allowed; the webhook marks the donation SUCCEEDED.
 router.post(
-  "/",
-  auth(UserRole.USER),
-  validateRequest(donationValidation.createDonationSchema),
-  donateController.createDonation
+  "/checkout-session",
+  optionalAuth,
+  validateRequest(donationValidation.checkoutSession),
+  donateController.createCheckoutSession
 );
 
-router.get("/", donateController.getAllDonation);
+//* Admin only: exposes donor emails
+router.get("/", auth(...ROLES.ADMINS), validateRequest(donationValidation.listQuery), donateController.getAllDonation);
 
 router.get(
   "/user-donations",
-  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.USER),
+  auth(...ROLES.ALL),
+  validateRequest(donationValidation.listQuery),
   donateController.getDonationsByUser
 );
 
-router.get(
-  "/:donateId",
-  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.USER),
-  donateController.getADonation
-);
+router.get("/:donateId", auth(...ROLES.ALL), validateRequest(donationValidation.donateIdParam), donateController.getADonation);
 
 router.put(
   "/:donateId",
-  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  auth(...ROLES.ADMINS),
   validateRequest(donationValidation.updateDonationSchema),
   donateController.updateADonate
 );
 
-router.delete(
-  "/:donateId",
-  auth(UserRole.SUPER_ADMIN, UserRole.ADMIN),
-  donateController.deleteADonate
-);
+router.delete("/:donateId", auth(...ROLES.ADMINS), validateRequest(donationValidation.donateIdParam), donateController.deleteADonate);
 
 export const donateRoutes = router;

@@ -1,5 +1,6 @@
-//* Fee breakdown and first-year cost estimates (BDT). Preview logic until the fees API (Phase 3f) exists:
-//* GET /pets/:id/fees will return the shelter's own line items; the estimate constants move to `Setting`.
+//* Fee breakdown and first-year cost estimates (BDT, major units). Live pets use GET /pets/:id/fees for
+//* the fee lines and the `cost.estimates` public setting for the calculator; the constants below are the
+//* offline/preview fallback and mirror the seeded setting.
 
 export type FeeLine = { label: string; amount: number; note?: string };
 
@@ -47,13 +48,24 @@ const foodTier = { basic: 0.8, standard: 1, premium: 1.5 };
 const vetYearly = { routine: 4000, plus: 9000 };
 const setup: Record<string, number> = { Dog: 6000, Cat: 5000, Rabbit: 4500 }; // bed, bowls, lead/litter, toys, carrier
 
-export const estimateFirstYear = (i: CostInputs, adoptionFee = 0) => {
-  const species = foodMonthly[i.species] ? i.species : "Dog";
+//* Shape of the `cost.estimates` setting (GET /settings/public); any missing part falls back to the defaults
+export type CostEstimates = {
+  currency?: string;
+  setup?: Record<string, number>;
+  foodMonthly?: Record<string, Record<CostInputs["size"], number>>;
+  foodTier?: Partial<Record<CostInputs["food"], number>>;
+  vetYearly?: Partial<Record<CostInputs["vet"], number>>;
+};
+
+export const estimateFirstYear = (i: CostInputs, adoptionFee = 0, est?: CostEstimates) => {
+  const food = est?.foodMonthly ?? foodMonthly;
+  const species = food[i.species] ? i.species : foodMonthly[i.species] ? i.species : "Dog";
+  const monthly = food[species]?.[i.size] ?? foodMonthly[species]?.[i.size] ?? foodMonthly.Dog[i.size];
   const lines: FeeLine[] = [
     { label: "Adoption fee", amount: adoptionFee },
-    { label: "Starter supplies", amount: setup[species] },
-    { label: "Food (12 months)", amount: Math.round(foodMonthly[species][i.size] * foodTier[i.food] * 12) },
-    { label: i.vet === "plus" ? "Vet care (plus)" : "Vet care (routine)", amount: vetYearly[i.vet] },
+    { label: "Starter supplies", amount: est?.setup?.[species] ?? setup[species] ?? setup.Dog },
+    { label: "Food (12 months)", amount: Math.round(monthly * (est?.foodTier?.[i.food] ?? foodTier[i.food]) * 12) },
+    { label: i.vet === "plus" ? "Vet care (plus)" : "Vet care (routine)", amount: est?.vetYearly?.[i.vet] ?? vetYearly[i.vet] },
   ];
   if (i.insurance) lines.push({ label: "Pet insurance", amount: species === "Dog" ? 7200 : 5400 });
   if (i.grooming) lines.push({ label: "Grooming", amount: species === "Dog" ? (i.size === "Large" ? 9000 : 6000) : 3000 });

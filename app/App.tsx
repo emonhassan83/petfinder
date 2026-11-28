@@ -20,6 +20,8 @@ import { PetDetailScreen } from "./src/screens/PetDetailScreen";
 import { ChatScreen } from "./src/screens/ChatScreen";
 import { StoriesScreen } from "./src/screens/StoriesScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
+import { AuthScreen } from "./src/screens/AuthScreen";
+import { navigationRef } from "./src/navigation";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -96,6 +98,7 @@ const Root = () => {
           <Stack.Screen name="Stories" component={StoriesScreen} options={{ title: "Happy tails" }} />
           <Stack.Screen name="Chat" component={ChatScreen} />
           <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ title: "Preferences", presentation: "modal" }} />
+          <Stack.Screen name="SignIn" component={AuthScreen} options={{ title: "Sign in", presentation: "modal" }} />
         </>
       )}
     </Stack.Navigator>
@@ -109,7 +112,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AppStateProvider>
-        <NavigationContainer theme={navTheme}>
+        <NavigationContainer ref={navigationRef} theme={navTheme}>
           <StatusBar style="dark" />
           <Root />
         </NavigationContainer>

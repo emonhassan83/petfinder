@@ -1,27 +1,32 @@
-// BarChart.tsx
+"use client";
+
 import React from "react";
 import { Bar } from "react-chartjs-2";
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from "chart.js";
+import { axisOptions, baseOptions, useChartColors } from "./useChartColors";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-const BarChart = ({ data }: any) => {
+const monthLabel = (m: string) => new Date(m).toLocaleString("default", { month: "short", year: "2-digit", timeZone: "UTC" });
+
+//* data: [{ month, count }]; `label` names the series. Colours follow light/dark mode.
+const BarChart = ({ data, label = "Monthly Counts", integer = true }: { data?: any[]; label?: string; integer?: boolean }) => {
+  const c = useChartColors();
+  const rows = data ?? [];
+
   const chartData = {
-    labels: data.map((item: any) => new Date(item.month).toLocaleString('default', { month: 'long' })),
+    labels: rows.map((item) => monthLabel(item.month)),
     datasets: [
       {
-        label: 'Monthly Counts',
-        data: data.map((item: any) => item.count),
-        backgroundColor: 'rgba(75, 192, 192, 0.6)',
-        borderColor: 'rgba(75, 192, 192, 1)',
-        borderWidth: 1,
+        label,
+        data: rows.map((item) => item.count),
+        backgroundColor: c.series[0],
+        borderRadius: 6,
       },
     ],
   };
 
-  return (
-    <Bar data={chartData} options={{ maintainAspectRatio: false }} />
-  );
+  return <Bar key={c.scheme} data={chartData} options={baseOptions(c, { scales: axisOptions(c, integer) })} />;
 };
 
 export default BarChart;

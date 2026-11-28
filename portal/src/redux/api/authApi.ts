@@ -1,5 +1,7 @@
 import { baseApi } from "./baseApi";
 
+//* Login, refresh and logout go through services/auth.services (they manage token storage);
+//* these are the remaining auth calls.
 export const authApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     changePassword: build.mutation({
@@ -8,31 +10,13 @@ export const authApi = baseApi.injectEndpoints({
         method: "POST",
         data,
       }),
-      invalidatesTags: [],
     }),
-    refreshToken: build.mutation({
-      query: (data) => {
-        return {
-          url: `/auth/refresh-token`,
-          method: "POST",
-          body: data,
-        };
-      },
-      invalidatesTags: [],
-    }),
-    
     forgotPassword: build.mutation({
-      query: (data) => {
-        // Log the data to the console
-        console.log("Forgot Password Data:", data);
-        
-        return {
-          url: `/auth/forgot-password`,
-          method: "POST",
-          data,
-        };
-      },
-      invalidatesTags: [],
+      query: (data) => ({
+        url: `/auth/forgot-password`,
+        method: "POST",
+        data,
+      }),
     }),
     resetPassword: build.mutation({
       query: (data) => ({
@@ -40,14 +24,19 @@ export const authApi = baseApi.injectEndpoints({
         method: "POST",
         data,
       }),
-      invalidatesTags: [],
+    }),
+    requestEmailVerification: build.mutation<unknown, void>({
+      query: () => ({
+        url: `/auth/verify-email/request`,
+        method: "POST",
+      }),
     }),
   }),
 });
 
 export const {
   useChangePasswordMutation,
-  useRefreshTokenMutation,
   useForgotPasswordMutation,
   useResetPasswordMutation,
+  useRequestEmailVerificationMutation,
 } = authApi;

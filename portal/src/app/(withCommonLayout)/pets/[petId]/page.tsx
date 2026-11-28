@@ -6,7 +6,6 @@ import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import VerifiedIcon from "@mui/icons-material/Verified";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
-import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
 import AdoptionButtonWrapper from "./components/AddAdoptButtonWrapper";
 import PetGallery from "./components/PetGallery";
@@ -15,7 +14,9 @@ import PetCard from "../components/petCard/PetCard";
 import PetFees from "./components/PetFees";
 import CostCalculator from "./components/CostCalculator";
 import BookVisit from "./components/BookVisit";
-import { getFeeBreakdown } from "@/lib/petCosts";
+import MessageButton from "./components/MessageButton";
+import { CostEstimates, FeeLine, getFeeBreakdown } from "@/lib/petCosts";
+import { fetchApi, normalizePet } from "@/lib/apiData";
 import { findPreviewPet, findPreviewShelter, previewPets, previewShelters } from "@/mock/pets";
 
 type Pet = {
@@ -30,7 +31,11 @@ type Pet = {
   location: string;
   image: string;
   photos: string[];
+  videos?: string[];
   description?: string;
+  status?: string;
+  userId?: string;
+  healthStatus?: string;
   traits: string[];
   goodWith: string[];
   houseTrained?: boolean;
@@ -39,7 +44,11 @@ type Pet = {
   medicalHistory?: string;
   adoptionRequirements?: string;
   fee?: number;
-  shelter: { id?: string; name: string; city?: string; phone?: string; verified: boolean };
+  shelter: { id?: string; name: string; city?: string; phone?: string; verified: boolean; image?: string };
+  //* fee lines in minor units (poisha), from GET /pets/:id/fees
+  feeLines?: FeeLine[];
+  feeCurrency?: string;
+  isPreview?: boolean;
 };
 
 //* Preview ids come from mock data; everything else from the API
@@ -47,23 +56,52 @@ const loadPet = async (id: string): Promise<Pet | null> => {
   const preview = findPreviewPet(id);
   if (preview) {
     const s = findPreviewShelter(preview.shelterId)!;
-    return { ...preview, shelter: { id: s.id, name: s.name, city: s.city, phone: s.phone, verified: s.verified } };
-  }
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/pets/${id}`, { cache: "no-store" });
-    if (!res.ok) return null;
-    const { data: p } = await res.json();
-    if (!p) return null;
+    //* preview fees are major units; PetFees renders minor units
+    const feeLines = getFeeBreakdown(preview).map((l) => ({ ...l, amount: l.amount * 100 }));
     return {
-      ...p,
-      photos: [p.image].filter(Boolean),
-      traits: p.temperament ? String(p.temperament).split(",").map((t: string) => t.trim()) : [],
-      goodWith: [],
-      shelter: { name: p.user?.name ?? "Pet owner", city: p.location, verified: false },
+      ...preview,
+      isPreview: true,
+      feeLines,
+      feeCurrency: "BDT",
+      shelter: { id: s.id, name: s.name, city: s.city, phone: s.phone, verified: s.verified, image: s.image },
     };
-  } catch {
-    return null;
   }
+  const res = await fetchApi<any>(`/pets/${id}`, { cache: "no-store" });
+  if (!res?.data) return null;
+  const p = normalizePet(res.data);
+  const [feesRes, shelterRes] = await Promise.all([
+    fetchApi<{ currency: string; total: number; fees: any[] }>(`/pets/${id}/fees`, { cache: "no-store" }),
+    p.shelter?.slug ? fetchApi<any>(`/shelters/${p.shelter.slug}?petLimit=1`) : Promise.resolve(null),
+  ]);
+  const fees = feesRes?.data;
+  const shelter = shelterRes?.data;
+  return {
+    ...p,
+    traits: p.temperament ? String(p.temperament).split(",").map((t: string) => t.trim()).filter(Boolean) : [],
+    goodWith: [],
+    fee: fees?.total ? Math.round(fees.total / 100) : undefined,
+    feeLines: (fees?.fees ?? []).map((f: any) => ({ label: f.label, amount: f.amount, note: f.note ?? undefined })),
+    feeCurrency: fees?.currency ?? "BDT",
+    shelter: p.shelter
+      ? {
+          id: p.shelter.slug || p.shelter.id,
+          name: p.shelter.name,
+          city: shelter?.location?.city || shelter?.location?.name || p.location,
+          phone: shelter?.phone || undefined,
+          verified: p.shelter.verificationStatus === "VERIFIED",
+          image: shelter?.coverImage || shelter?.logo || undefined,
+        }
+      : { name: p.user?.name ?? "Pet owner", city: p.location, verified: false },
+  };
+};
+
+//* Same species first, from the API (preview pets for preview ids)
+const loadRelated = async (pet: Pet) => {
+  if (pet.isPreview) {
+    return previewPets.filter((p) => p.id !== pet.id && (p.species === pet.species || p.shelterId === pet.shelter.id)).slice(0, 3);
+  }
+  const res = await fetchApi<any[]>(`/pets?species=${encodeURIComponent(pet.species)}&limit=4`);
+  return (res?.data ?? []).filter((p) => p.id !== pet.id).slice(0, 3).map(normalizePet);
 };
 
 const Fact = ({ label, value }: { label: string; value?: string | number }) =>
@@ -102,9 +140,12 @@ const PetDetailsPage = async ({ params }: { params: Promise<{ petId: string }> }
   }
 
   const pronoun = pet.gender === "Female" ? "her" : "him";
-  const related = previewPets.filter((p) => p.id !== pet.id && (p.species === pet.species || p.shelterId === pet.shelter.id)).slice(0, 3);
-  const shelterInfo = pet.shelter.id ? previewShelters.find((s) => s.id === pet.shelter.id) : undefined;
-  const fees = getFeeBreakdown(pet);
+  const [related, settings] = await Promise.all([loadRelated(pet), fetchApi<Record<string, any>>("/settings/public")]);
+  const estimates = settings?.data?.["cost.estimates"] as CostEstimates | undefined;
+  const shelterImage = pet.shelter.image ?? (pet.shelter.id ? previewShelters.find((s) => s.id === pet.shelter.id)?.image : undefined);
+  const fees = pet.feeLines ?? [];
+  const feeTotal = fees.reduce((sum, l) => sum + l.amount, 0);
+  const acceptsApplications = !pet.status || pet.status === "PUBLISHED";
   const sectionTitle = { fontSize: { xs: 24, md: 32 }, "& em": { color: "secondary.main" } };
 
   return (
@@ -119,7 +160,7 @@ const PetDetailsPage = async ({ params }: { params: Promise<{ petId: string }> }
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1.7fr 1fr" }, gap: { xs: 3, md: 5 }, alignItems: "start" }}>
           {/* Main column */}
           <Box>
-            <PetGallery photos={pet.photos} name={pet.name} />
+            <PetGallery photos={pet.photos} videos={pet.videos} name={pet.name} />
 
             <Box sx={{ mt: 4 }}>
               <Typography variant="h1" sx={{ fontSize: { xs: "2.6rem", md: "3.8rem" } }}>
@@ -149,6 +190,7 @@ const PetDetailsPage = async ({ params }: { params: Promise<{ petId: string }> }
               <Fact label="Age" value={`${pet.age} ${pet.age === 1 ? "year" : "years"}`} />
               <Fact label="Size" value={pet.size} />
               <Fact label="Colour" value={pet.color} />
+              {pet.healthStatus && <Fact label="Health" value={pet.healthStatus} />}
               <Fact label="Adoption fee" value={pet.fee ? `৳${pet.fee.toLocaleString()}` : undefined} />
             </Box>
 
@@ -164,6 +206,7 @@ const PetDetailsPage = async ({ params }: { params: Promise<{ petId: string }> }
             )}
 
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 3, mt: 3 }}>
+              {pet.isPreview && (
               <Box>
                 <Typography sx={{ fontWeight: 700, mb: 1 }}>Health</Typography>
                 <Box sx={{ display: "grid", gap: 1 }}>
@@ -172,6 +215,7 @@ const PetDetailsPage = async ({ params }: { params: Promise<{ petId: string }> }
                   <Health ok={pet.houseTrained} label="House-trained" />
                 </Box>
               </Box>
+              )}
               {pet.goodWith.length > 0 && (
                 <Box>
                   <Typography sx={{ fontWeight: 700, mb: 1 }}>Good in a home with</Typography>
@@ -214,7 +258,7 @@ const PetDetailsPage = async ({ params }: { params: Promise<{ petId: string }> }
                 <Typography color="text.secondary" sx={{ mt: 1, mb: 2.5 }}>
                   No hidden costs. This is exactly what {pet.shelter.name} charges and why.
                 </Typography>
-                <PetFees lines={fees} total={pet.fee ?? 0} />
+                <PetFees lines={fees} total={feeTotal} currency={pet.feeCurrency} />
               </>
             )}
 
@@ -225,7 +269,7 @@ const PetDetailsPage = async ({ params }: { params: Promise<{ petId: string }> }
             <Typography color="text.secondary" sx={{ mt: 1, mb: 2.5 }}>
               Adjust the options to see what life with {pet.name} might cost.
             </Typography>
-            <CostCalculator species={pet.species} size={pet.size} fee={pet.fee} name={pet.name} />
+            <CostCalculator species={pet.species} size={pet.size} fee={pet.fee} name={pet.name} estimates={estimates} />
           </Box>
 
           {/* Sticky sidebar */}
@@ -237,22 +281,16 @@ const PetDetailsPage = async ({ params }: { params: Promise<{ petId: string }> }
               <Typography color="text.secondary" sx={{ mt: 1 }}>
                 Send an application and the {pet.shelter.verified ? "shelter" : "owner"} will get back to you, usually within 48 hours.
               </Typography>
-              <AdoptionButtonWrapper petId={pet.id} />
-              <BookVisit pet={{ id: pet.id, name: pet.name, image: pet.image }} shelterName={pet.shelter.name} />
-              <LinkBox
-                
-                href="/dashboard/user/messages"
-                sx={{ mt: 1.5, display: "flex", alignItems: "center", justifyContent: "center", gap: 1, py: 1, borderRadius: 999, border: "1.5px solid", borderColor: "primary.main", color: "primary.main", fontWeight: 700, "&:hover": { bgcolor: "primary.light" } }}
-              >
-                <ChatBubbleOutlineIcon fontSize="small" /> Message about {pronoun}
-              </LinkBox>
+              <AdoptionButtonWrapper petId={pet.id} ownerId={pet.userId} acceptsApplications={acceptsApplications} />
+              {acceptsApplications && <BookVisit pet={{ id: pet.id, name: pet.name, image: pet.image, ownerId: pet.userId }} shelterName={pet.shelter.name} />}
+              <MessageButton petId={pet.id} ownerId={pet.userId} label={`Message about ${pronoun}`} />
               <PetActions pet={pet} />
             </Box>
 
             <Box sx={{ bgcolor: "background.paper", borderRadius: "var(--pf-radius-card)", overflow: "hidden", border: "1px solid", borderColor: "divider" }}>
-              {shelterInfo && (
+              {shelterImage && (
                 <Box sx={{ position: "relative", height: 110 }}>
-                  <Image src={shelterInfo.image} alt="" fill sizes="400px" style={{ objectFit: "cover" }} />
+                  <Image src={shelterImage} alt="" fill sizes="400px" style={{ objectFit: "cover" }} />
                 </Box>
               )}
               <Box sx={{ p: 3 }}>
@@ -289,7 +327,7 @@ const PetDetailsPage = async ({ params }: { params: Promise<{ petId: string }> }
               Other pets you may like
             </Typography>
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)" }, gap: 3 }}>
-              {related.map((p) => (
+              {related.map((p: any) => (
                 <PetCard key={p.id} pet={p} />
               ))}
             </Box>

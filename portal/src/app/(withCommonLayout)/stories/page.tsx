@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Box, Chip, Container, IconButton, Typography } from "@mui/material";
+import { useEffect, useState } from "react";
+import { Alert, Box, Chip, Container, IconButton, Skeleton, Typography } from "@mui/material";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
 import Image from "next/image";
 import Link from "next/link";
@@ -9,6 +9,7 @@ import Meta from "@/components/Meta/MetaData";
 import PageHeader from "@/components/Shared/PageHeader";
 import Lightbox from "@/components/UI/Lightbox";
 import { successStories } from "@/mock/stories";
+import { UiStory, fetchPublic, normalizeStory } from "@/lib/apiData";
 
 const filters = [
   { label: "All stories", value: "" },
@@ -26,7 +27,29 @@ const formatDate = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { 
 const StoriesPage = () => {
   const [species, setSpecies] = useState("");
   const [viewer, setViewer] = useState<number | null>(null);
-  const list = useMemo(() => successStories.filter((s) => !species || s.species === species), [species]);
+  const [list, setList] = useState<UiStory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [preview, setPreview] = useState(false);
+
+  //* GET /success-stories (published only); preview stories only when the API is unreachable
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    fetchPublic<any[]>(`/success-stories?limit=60${species ? `&species=${encodeURIComponent(species)}` : ""}`).then((res) => {
+      if (!active) return;
+      if (res === "offline") {
+        setPreview(true);
+        setList(successStories.filter((s) => !species || s.species === species));
+      } else {
+        setPreview(false);
+        setList((res?.data ?? []).map(normalizeStory));
+      }
+      setLoading(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [species]);
 
   return (
     <>
@@ -55,7 +78,19 @@ const StoriesPage = () => {
           ))}
         </Box>
 
-        {list.length === 0 ? (
+        {preview && (
+          <Alert severity="info" sx={{ mb: 3, borderRadius: 3 }}>
+            Showing preview stories while the story service is offline.
+          </Alert>
+        )}
+
+        {loading ? (
+          <Box sx={{ columnCount: { xs: 1, sm: 2, md: 3 }, columnGap: 3 }}>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} variant="rounded" height={i % 2 ? 320 : 260} sx={{ mb: 3, borderRadius: "var(--pf-radius-card)", breakInside: "avoid" }} />
+            ))}
+          </Box>
+        ) : list.length === 0 ? (
           <Typography color="text.secondary" sx={{ py: 8, textAlign: "center" }}>
             No stories in this category yet.
           </Typography>
@@ -83,7 +118,7 @@ const StoriesPage = () => {
                 </Box>
                 <Box component={Link} href={`/stories/${s.id}`} sx={{ display: "block", p: 2.5 }}>
                   <Typography variant="overline" sx={{ color: "text.secondary", lineHeight: 1.6 }}>
-                    {s.petName} · {s.city} · {formatDate(s.adoptedOn)}
+                    {[s.petName, s.city, s.adoptedOn ? formatDate(s.adoptedOn) : ""].filter(Boolean).join(" · ")}
                   </Typography>
                   <Typography variant="h5" component="h2" sx={{ fontSize: 22, lineHeight: 1.25, mt: 0.5 }}>
                     {s.title}
@@ -99,7 +134,7 @@ const StoriesPage = () => {
         )}
       </Container>
 
-      <Lightbox images={list.map((s) => ({ src: s.image, alt: s.petName, caption: `${s.petName} with ${s.family}` }))} index={viewer} onChange={setViewer} />
+      <Lightbox images={list.map((s) => ({ src: s.image, alt: s.petName, caption: s.family ? `${s.petName} with ${s.family}` : s.petName }))} index={viewer} onChange={setViewer} />
     </>
   );
 };

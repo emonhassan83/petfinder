@@ -1,213 +1,165 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  LinearProgress,
-  MenuItem,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TextField,
-  Tooltip,
-  Typography,
-} from "@mui/material";
+import { Alert, Box, Button, Card, Chip, IconButton, LinearProgress, Table, TableBody, TableCell, TableHead, TableRow, Tooltip, Typography } from "@mui/material";
 import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
 import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
-import { toast } from "sonner";
-import { Listing, ListingStatus, mockListings, mockPlans } from "@/mock/shelter";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import Link from "next/link";
+import QueryState from "@/components/Dashboard/Common/QueryState";
+import Thumb from "@/components/Dashboard/Common/Thumb";
+import { useGetMyListingsQuery, useUpdateListingStatusMutation } from "@/redux/api/listingApi";
+import { useGetMySubscriptionQuery } from "@/redux/api/billingApi";
+import { runMutation } from "@/utils/dashboardHelpers";
+import ListingEditor from "./components/ListingEditor";
 
-const FREE_LIMIT = mockPlans[0].listings;
-const MAX_PHOTOS = 8;
-const MAX_VIDEO_MB = 50;
-
-const statusColor: Record<ListingStatus, "success" | "warning" | "default" | "primary"> = {
+const statusColor: Record<string, "success" | "warning" | "default" | "primary" | "info" | "error"> = {
   PUBLISHED: "success",
   PAUSED: "warning",
   DRAFT: "default",
+  PENDING: "info",
   ADOPTED: "primary",
+  REMOVED: "error",
 };
 
-const empty = { name: "", species: "Dog", breed: "", age: "1" };
-
 const ListingsPage = () => {
-  const [listings, setListings] = useState<Listing[]>(mockListings);
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState(empty);
-  const [photos, setPhotos] = useState<File[]>([]);
-  const [video, setVideo] = useState<File | null>(null);
+  const listings = useGetMyListingsQuery();
+  const sub = useGetMySubscriptionQuery({});
+  const [setStatus, { isLoading: saving }] = useUpdateListingStatusMutation();
 
-  const used = listings.filter((l) => l.status !== "ADOPTED").length;
-  const atLimit = used >= FREE_LIMIT;
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  const setStatus = (id: string, status: ListingStatus) => {
-    if (status === "PUBLISHED" && listings.filter((l) => l.status === "PUBLISHED").length >= FREE_LIMIT) {
-      toast.error(`Your plan allows ${FREE_LIMIT} active listings. Upgrade to publish more.`);
-      return;
-    }
-    setListings((prev) => prev.map((l) => (l.id === id ? { ...l, status } : l)));
+  const items: any[] = listings.data?.items ?? [];
+  const editing = editingId ? items.find((p) => p.id === editingId) : undefined;
+
+  const used: number = sub.data?.usage?.listings ?? 0;
+  const limit: number | undefined = sub.data?.limits?.listings;
+  const atLimit = limit !== undefined && used >= limit;
+
+  const openCreate = () => {
+    setEditingId(null);
+    setEditorOpen(true);
+  };
+  const openEdit = (id: string) => {
+    setEditingId(id);
+    setEditorOpen(true);
   };
 
-  const onPhotos = (files: FileList | null) => {
-    const picked = Array.from(files || []).filter((f) => f.type.startsWith("image/"));
-    setPhotos((prev) => [...prev, ...picked].slice(0, MAX_PHOTOS));
-  };
-
-  const onVideo = (file: File | undefined) => {
-    if (!file) return;
-    if (!file.type.startsWith("video/") || file.size > MAX_VIDEO_MB * 1024 * 1024) {
-      toast.error(`Video must be a video file under ${MAX_VIDEO_MB} MB.`);
-      return;
-    }
-    setVideo(file);
-  };
-
-  const create = () => {
-    if (!form.name.trim() || !form.breed.trim()) {
-      toast.error("Name and breed are required.");
-      return;
-    }
-    const age = Number(form.age);
-    if (!Number.isFinite(age) || age < 0) {
-      toast.error("Enter a valid age.");
-      return;
-    }
-    setListings((prev) => [
-      { id: `l${Date.now()}`, name: form.name.trim(), species: form.species, breed: form.breed.trim(), age, status: "DRAFT", views: 0, applications: 0 },
-      ...prev,
-    ]);
-    setOpen(false);
-    setForm(empty);
-    setPhotos([]);
-    setVideo(null);
-    toast.success("Draft created. Publish it when you're ready.");
-  };
+  const change = (id: string, status: string, ok: string) => runMutation(setStatus({ id, status }), ok);
 
   return (
     <Box>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: 2 }}>
         <Typography variant="h4">My listings</Typography>
-        <Button onClick={() => setOpen(true)} disabled={atLimit}>
-          Add listing
-        </Button>
+        <Button onClick={openCreate}>Add listing</Button>
       </Box>
 
-      <Card sx={{ p: 2, mb: 3 }}>
-        <Typography variant="body2" color="text.secondary">
-          Free plan: {used} of {FREE_LIMIT} listings used
-        </Typography>
-        <LinearProgress variant="determinate" value={Math.min(100, (used / FREE_LIMIT) * 100)} sx={{ mt: 1, height: 8, borderRadius: 4 }} />
-        {atLimit && (
-          <Alert severity="info" sx={{ mt: 2 }}>
-            You&apos;ve reached your plan limit. Upgrade under Plan &amp; Billing to add more listings.
-          </Alert>
-        )}
-      </Card>
+      {limit !== undefined && (
+        <Card sx={{ p: 2, mb: 3 }}>
+          <Typography variant="body2" color="text.secondary">
+            {sub.data?.plan?.name} plan: {used} of {limit} active listings used
+          </Typography>
+          <LinearProgress variant="determinate" value={limit ? Math.min(100, (used / limit) * 100) : 0} sx={{ mt: 1, height: 8, borderRadius: 4 }} />
+          {atLimit && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              You have reached your plan limit. Pause or archive a listing, or upgrade under{" "}
+              <Link href="/dashboard/shelter/billing" style={{ textDecoration: "underline" }}>
+                Plan &amp; Billing
+              </Link>{" "}
+              to publish more. Drafts do not count.
+            </Alert>
+          )}
+        </Card>
+      )}
 
-      <Card sx={{ overflowX: "auto" }}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Pet</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell align="right">Views</TableCell>
-              <TableCell align="right">Applications</TableCell>
-              <TableCell align="right">Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {listings.map((l) => (
-              <TableRow key={l.id}>
-                <TableCell>
-                  <Typography fontWeight={600}>{l.name}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {l.species} · {l.breed} · {l.age}y
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Chip size="small" label={l.status} color={statusColor[l.status]} />
-                </TableCell>
-                <TableCell align="right">{l.views}</TableCell>
-                <TableCell align="right">{l.applications}</TableCell>
-                <TableCell align="right">
-                  {l.status === "PUBLISHED" ? (
-                    <Tooltip title="Pause listing">
-                      <IconButton aria-label={`Pause ${l.name}`} onClick={() => setStatus(l.id, "PAUSED")}>
-                        <PauseCircleOutlineIcon />
-                      </IconButton>
-                    </Tooltip>
-                  ) : l.status !== "ADOPTED" ? (
-                    <Tooltip title="Publish listing">
-                      <IconButton aria-label={`Publish ${l.name}`} onClick={() => setStatus(l.id, "PUBLISHED")}>
-                        <PlayCircleOutlineIcon />
-                      </IconButton>
-                    </Tooltip>
-                  ) : null}
-                </TableCell>
+      <QueryState isLoading={listings.isLoading} error={listings.error}>
+        <Card sx={{ overflowX: "auto" }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Pet</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell align="right">Views</TableCell>
+                <TableCell align="right">Applications</TableCell>
+                <TableCell align="right">Actions</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
-      <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: "block" }}>
-        Preview data. Changes are not saved until the backend is connected.
-      </Typography>
+            </TableHead>
+            <TableBody>
+              {items.map((l) => (
+                <TableRow key={l.id}>
+                  <TableCell>
+                    <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
+                      <Thumb src={l.image || l.media?.find((m: any) => m.isCover)?.url || l.media?.[0]?.url} size={44} alt={l.name} />
+                      <Box>
+                        <Typography fontWeight={600}>{l.name}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {l.species} · {l.breed} · {l.age}y
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Chip size="small" label={l.status} color={statusColor[l.status] ?? "default"} />
+                  </TableCell>
+                  <TableCell align="right">{l.views ?? 0}</TableCell>
+                  <TableCell align="right">{l._count?.adoptionRequest ?? 0}</TableCell>
+                  <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
+                    <Tooltip title="Edit">
+                      <IconButton aria-label={`Edit ${l.name}`} onClick={() => openEdit(l.id)}>
+                        <EditOutlinedIcon />
+                      </IconButton>
+                    </Tooltip>
+                    {l.status === "PUBLISHED" && (
+                      <Tooltip title="Pause listing">
+                        <span>
+                          <IconButton aria-label={`Pause ${l.name}`} disabled={saving} onClick={() => change(l.id, "PAUSED", "Listing paused.")}>
+                            <PauseCircleOutlineIcon />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    )}
+                    {(l.status === "DRAFT" || l.status === "PAUSED") && (
+                      <Tooltip title="Publish listing">
+                        <span>
+                          <IconButton aria-label={`Publish ${l.name}`} disabled={saving} onClick={() => change(l.id, "PUBLISHED", "Listing published.")}>
+                            <PlayCircleOutlineIcon />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    )}
+                    {["PUBLISHED", "PAUSED", "PENDING"].includes(l.status) && (
+                      <Tooltip title="Mark as adopted">
+                        <span>
+                          <IconButton aria-label={`Mark ${l.name} adopted`} disabled={saving} onClick={() => change(l.id, "ADOPTED", "Marked as adopted.")}>
+                            <CheckCircleOutlineIcon />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {items.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} align="center">
+                    No listings yet. Add your first pet to get started.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Card>
+      </QueryState>
 
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Add listing</DialogTitle>
-        <DialogContent sx={{ display: "grid", gap: 2, pt: "8px !important" }}>
-          <TextField label="Pet name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          <TextField select label="Species" value={form.species} onChange={(e) => setForm({ ...form, species: e.target.value })}>
-            {["Dog", "Cat", "Rabbit", "Bird", "Other"].map((s) => (
-              <MenuItem key={s} value={s}>
-                {s}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField label="Breed" value={form.breed} onChange={(e) => setForm({ ...form, breed: e.target.value })} required />
-          <TextField label="Age (years)" type="number" inputProps={{ min: 0 }} value={form.age} onChange={(e) => setForm({ ...form, age: e.target.value })} />
-          <Box>
-            <Button component="label" variant="outlined" size="small">
-              Add photos ({photos.length}/{MAX_PHOTOS})
-              <input hidden type="file" accept="image/*" multiple onChange={(e) => onPhotos(e.target.files)} />
-            </Button>{" "}
-            <Button component="label" variant="outlined" size="small">
-              {video ? "Replace video" : "Add video"}
-              <input hidden type="file" accept="video/*" onChange={(e) => onVideo(e.target.files?.[0])} />
-            </Button>
-            {video && (
-              <Typography variant="caption" sx={{ display: "block", mt: 1 }}>
-                {video.name}
-              </Typography>
-            )}
-            {photos.length > 0 && (
-              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mt: 1 }}>
-                {photos.map((f, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img key={i} src={URL.createObjectURL(f)} alt={`Selected photo ${i + 1}`} width={64} height={64} style={{ objectFit: "cover", borderRadius: 8 }} />
-                ))}
-              </Box>
-            )}
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button variant="text" color="inherit" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button onClick={create}>Save draft</Button>
-        </DialogActions>
-      </Dialog>
+      <ListingEditor
+        open={editorOpen}
+        onClose={() => setEditorOpen(false)}
+        pet={editing}
+        mediaLimit={sub.data?.limits?.mediaPerListing}
+        onCreated={(p) => setEditingId(p.id)}
+      />
     </Box>
   );
 };

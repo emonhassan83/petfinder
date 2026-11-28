@@ -2,17 +2,27 @@ import httpStatus from "http-status";
 import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import pick from "../../../shared/pick";
-import { RequestWithUser } from "../../interfaces";
-import { donateFilterableFields, donateSearchAbleFields } from "./donate.constant";
+import { donateFilterableFields } from "./donate.constant";
 import { DonationService } from "./donate.service";
 
-const  createDonation = catchAsync(async (req, res) => {
-  const result = await DonationService.createDonationIntoDB((req as RequestWithUser)?.user, req.body);
+const createDonation = catchAsync(async (req, res) => {
+  const result = await DonationService.createDonationIntoDB(req.user!, req.body);
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
     message: "Donation added successfully!",
+    data: result,
+  });
+});
+
+const createCheckoutSession = catchAsync(async (req, res) => {
+  const result = await DonationService.createCheckoutSession(req.user, req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: "Donation checkout session created!",
     data: result,
   });
 });
@@ -33,14 +43,10 @@ const getAllDonation = catchAsync(async (req, res) => {
 });
 
 const getDonationsByUser = catchAsync(async (req, res) => {
-  const filters = pick(req.query, donateSearchAbleFields);
+  const filters = pick(req.query, donateFilterableFields);
   const options = pick(req.query, ["limit", "page", "sortBy", "sortOrder"]);
 
-  const result = await DonationService.getUserDonationsFromDB(
-    filters,
-    options,
-    (req as RequestWithUser)?.user
-  );
+  const result = await DonationService.getUserDonationsFromDB(filters, options, req.user!);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -52,9 +58,7 @@ const getDonationsByUser = catchAsync(async (req, res) => {
 });
 
 const getADonation = catchAsync(async (req, res) => {
-  const { donateId } = req.params;
-
-  const result = await DonationService.getADonationIntoDB(donateId, (req as RequestWithUser)?.user);
+  const result = await DonationService.getADonationIntoDB(req.params.donateId, req.user!);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -65,13 +69,7 @@ const getADonation = catchAsync(async (req, res) => {
 });
 
 const updateADonate = catchAsync(async (req, res) => {
-  const { donateId } = req.params;
- 
-  const result = await DonationService.updateDonationIntoDB(
-    (req as RequestWithUser)?.user,
-    donateId,
-    req.body
-  );
+  const result = await DonationService.updateDonationIntoDB(req.user!, req.params.donateId, req.body);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -82,9 +80,7 @@ const updateADonate = catchAsync(async (req, res) => {
 });
 
 const deleteADonate = catchAsync(async (req, res) => {
-  const { donateId } = req.params;
-  
-  const result = await DonationService.deleteDonationIntoDB((req as RequestWithUser)?.user, donateId);
+  const result = await DonationService.deleteDonationIntoDB(req.user!, req.params.donateId);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -95,10 +91,11 @@ const deleteADonate = catchAsync(async (req, res) => {
 });
 
 export const donateController = {
-    createDonation,
-    getAllDonation,
-    getDonationsByUser,
-    getADonation,
-    updateADonate,
-    deleteADonate,
+  createDonation,
+  createCheckoutSession,
+  getAllDonation,
+  getDonationsByUser,
+  getADonation,
+  updateADonate,
+  deleteADonate,
 };

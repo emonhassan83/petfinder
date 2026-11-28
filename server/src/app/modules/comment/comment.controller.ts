@@ -2,15 +2,11 @@ import httpStatus from "http-status";
 import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import pick from "../../../shared/pick";
-import { RequestWithUser } from "../../interfaces";
-import {
-  commentFilterableFields,
-  commentSearchAbleFields,
-} from "./comment.constant";
+import { commentFilterableFields } from "./comment.constant";
 import { CommentService } from "./comment.service";
 
 const createComment = catchAsync(async (req, res) => {
-  const result = await CommentService.createCommentIntoDB((req as RequestWithUser)?.user, req.body);
+  const result = await CommentService.createCommentIntoDB(req.user!, req.body);
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
@@ -36,14 +32,10 @@ const getAllComment = catchAsync(async (req, res) => {
 });
 
 const getMyComments = catchAsync(async (req, res) => {
-  const filters = pick(req.query, commentSearchAbleFields);
+  const filters = pick(req.query, commentFilterableFields);
   const options = pick(req.query, ["limit", "page", "sortBy", "sortOrder"]);
 
-  const result = await CommentService.getMyCommentsFromDB(
-    filters,
-    options,
-    (req as RequestWithUser)?.user
-  );
+  const result = await CommentService.getMyCommentsFromDB(filters, options, req.user!);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -55,9 +47,7 @@ const getMyComments = catchAsync(async (req, res) => {
 });
 
 const getAComment = catchAsync(async (req, res) => {
-  const { petId } = req.params;
-
-  const result = await CommentService.getACommentIntoDB(petId, (req as RequestWithUser)?.user);
+  const result = await CommentService.getACommentIntoDB(req.params.commentId);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -68,13 +58,7 @@ const getAComment = catchAsync(async (req, res) => {
 });
 
 const updateAComment = catchAsync(async (req, res) => {
-  const { petId } = req.params;
-
-  const result = await CommentService.updateCommentIntoDB(
-    (req as RequestWithUser)?.user,
-    petId,
-    req.body
-  );
+  const result = await CommentService.updateCommentIntoDB(req.user!, req.params.commentId, req.body);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -85,9 +69,7 @@ const updateAComment = catchAsync(async (req, res) => {
 });
 
 const deleteAComment = catchAsync(async (req, res) => {
-  const { petId } = req.params;
-  
-  const result = await CommentService.deleteCommentIntoDB((req as RequestWithUser)?.user, petId);
+  const result = await CommentService.deleteCommentIntoDB(req.user!, req.params.commentId);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

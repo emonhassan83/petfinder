@@ -2,15 +2,11 @@ import httpStatus from "http-status";
 import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import pick from "../../../shared/pick";
-import { RequestWithUser } from "../../interfaces";
-import { blogFilterableFields, blogSearchAbleFields } from "./blog.constant";
+import { blogFilterableFields } from "./blog.constant";
 import { BlogService } from "./blog.service";
 
 const createBlog = catchAsync(async (req, res) => {
-  const result = await BlogService.createBlogIntoDB(
-    (req as RequestWithUser)?.user,
-    req.body
-  );
+  const result = await BlogService.createBlogIntoDB(req.user!, req.body);
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
@@ -21,11 +17,7 @@ const createBlog = catchAsync(async (req, res) => {
 });
 
 const publishedBlog = catchAsync(async (req, res) => {
-  const { blogId } = req.params;
-  const result = await BlogService.publishedBlogIntoDB(
-    (req as RequestWithUser)?.user,
-    blogId
-  );
+  const result = await BlogService.publishedBlogIntoDB(req.user!, req.params.blogId);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -39,7 +31,7 @@ const getAllBlogs = catchAsync(async (req, res) => {
   const filters = pick(req.query, blogFilterableFields);
   const options = pick(req.query, ["limit", "page", "sortBy", "sortOrder"]);
 
-  const result = await BlogService.getAllBlogsFromDB(filters, options);
+  const result = await BlogService.getAllBlogsFromDB(filters, options, req.user);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -51,14 +43,10 @@ const getAllBlogs = catchAsync(async (req, res) => {
 });
 
 const getMyBlogs = catchAsync(async (req, res) => {
-  const filters = pick(req.query, blogSearchAbleFields);
+  const filters = pick(req.query, blogFilterableFields);
   const options = pick(req.query, ["limit", "page", "sortBy", "sortOrder"]);
 
-  const result = await BlogService.getMyBlogsFromDB(
-    filters,
-    options,
-    (req as RequestWithUser)?.user
-  );
+  const result = await BlogService.getMyBlogsFromDB(filters, options, req.user!);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -70,11 +58,7 @@ const getMyBlogs = catchAsync(async (req, res) => {
 });
 
 const getABlog = catchAsync(async (req, res) => {
-  const { blogId } = req.params;
-  const result = await BlogService.getABlogIntoDB(
-    blogId,
-    (req as RequestWithUser)?.user
-  );
+  const result = await BlogService.getABlogIntoDB(req.params.blogId, req.user!);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -85,12 +69,7 @@ const getABlog = catchAsync(async (req, res) => {
 });
 
 const updateABlog = catchAsync(async (req, res) => {
-  const { blogId } = req.params;
-  const result = await BlogService.updateBlogIntoDB(
-    (req as RequestWithUser)?.user,
-    blogId,
-    req.body
-  );
+  const result = await BlogService.updateBlogIntoDB(req.user!, req.params.blogId, req.body);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -101,11 +80,7 @@ const updateABlog = catchAsync(async (req, res) => {
 });
 
 const deleteABlog = catchAsync(async (req, res) => {
-  const { blogId } = req.params;
-  const result = await BlogService.deleteBlogIntoDB(
-    (req as RequestWithUser)?.user,
-    blogId
-  );
+  const result = await BlogService.deleteBlogIntoDB(req.user!, req.params.blogId);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

@@ -16,35 +16,32 @@ type TProps = {
 const opinionOptions = ["YES", "NO"];
 const AnimalSleepOptions = ["Outdoor", "Indoor", "Room", "Garage", "Crate"];
 
+//* PUT /adoption-requests/:id accepts the answers only (applicant, PENDING only)
+const answerKeys = [
+  "petsHousehold",
+  "petsNeutered",
+  "secureOutdoorArea",
+  "animalSleep",
+  "animalAlonePeriodsTime",
+  "detailsSupport",
+  "petOwnershipExperience",
+];
+
 const UpdateAdoptRequestModal = ({ open, setOpen, data }: TProps) => {
-  const [updateAdoptionRequest, { isLoading }] =
-    useUpdateAdoptionRequestMutation();
+  const [updateAdoptionRequest, { isLoading }] = useUpdateAdoptionRequestMutation();
 
   const handleFormSubmit = async (values: FieldValues) => {
-    const { name, email, address, contactNumber, ...others } = values;
-    const updatedData = {
-      id: data.id,
-      data: { ...others },
-    };
-
+    const body = Object.fromEntries(answerKeys.filter((k) => values[k]).map((k) => [k, values[k]]));
     try {
-      const res = await updateAdoptionRequest(updatedData);
-      if (res.data.id) {
-        toast.success("Adoption request updated successfully!");
-        setOpen(false);
-      }
+      await updateAdoptionRequest({ id: data.id, body }).unwrap();
+      toast.success("Application updated");
+      setOpen(false);
     } catch (error: any) {
-      toast.error(error.message);
-      console.error(error.message);
+      toast.error(error?.data?.message || "Could not update the application");
     }
   };
 
   const defaultValues = {
-    name: data?.user?.name,
-    email: data?.user?.email,
-    address: data?.user?.address,
-    contactNumber: data?.user?.contactNumber,
-    status: data?.status,
     petsNeutered: data?.petsNeutered,
     secureOutdoorArea: data?.secureOutdoorArea,
     animalSleep: data?.animalSleep,
@@ -54,64 +51,18 @@ const UpdateAdoptRequestModal = ({ open, setOpen, data }: TProps) => {
     detailsSupport: data?.detailsSupport,
   };
 
-  //   console.log(data);
-
   return (
-    <PetModal
-      maxWidth="lg"
-      open={open}
-      setOpen={setOpen}
-      title="Update Pet Adopt status"
-    >
+    <PetModal maxWidth="lg" open={open} setOpen={setOpen} title="Edit your application">
       <PetFrom onSubmit={handleFormSubmit} defaultValues={defaultValues}>
         <Grid container spacing={2} my={1}>
           <Grid item sm={12} md={6}>
-            <PetInput name="name" label="Name" type="text" fullWidth={true} />
+            <PetSelectField name="petsNeutered" label="Are other pets neutered?" items={opinionOptions} />
           </Grid>
           <Grid item sm={12} md={6}>
-            <PetInput
-              name="email"
-              label="Email"
-              type="email"
-              fullWidth={true}
-            />
+            <PetSelectField name="secureOutdoorArea" label="Do you have a secure outdoor area?" items={opinionOptions} />
           </Grid>
           <Grid item sm={12} md={6}>
-            <PetInput
-              name="address"
-              label="Address"
-              type="text"
-              fullWidth={true}
-            />
-          </Grid>
-          <Grid item sm={12} md={6}>
-            <PetInput
-              name="contactNumber"
-              label="Contract No"
-              type="tel"
-              fullWidth={true}
-            />
-          </Grid>
-          <Grid item sm={12} md={6}>
-            <PetSelectField
-              name="petsNeutered"
-              label="Are other pets neutered?"
-              items={opinionOptions}
-            />
-          </Grid>
-          <Grid item sm={12} md={6}>
-            <PetSelectField
-              name="secureOutdoorArea"
-              label="Do you have a secure outdoor area?"
-              items={opinionOptions}
-            />
-          </Grid>
-          <Grid item sm={12} md={6}>
-            <PetSelectField
-              name="animalSleep"
-              label="Where will the animal sleep at night?"
-              items={AnimalSleepOptions}
-            />
+            <PetSelectField name="animalSleep" label="Where will the animal sleep at night?" items={AnimalSleepOptions} />
           </Grid>
           <Grid item sm={12} md={6}>
             <PetSelectField
@@ -152,14 +103,8 @@ const UpdateAdoptRequestModal = ({ open, setOpen, data }: TProps) => {
           </Grid>
         </Grid>
 
-        <Button
-          fullWidth={true}
-          sx={{
-            margin: "10px 0",
-          }}
-          type="submit"
-        >
-          Update Adoption Request
+        <Button fullWidth={true} sx={{ margin: "10px 0" }} type="submit" disabled={isLoading}>
+          Save changes
         </Button>
       </PetFrom>
     </PetModal>

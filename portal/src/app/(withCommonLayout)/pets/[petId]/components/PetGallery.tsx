@@ -3,67 +3,89 @@
 import { useState } from "react";
 import { Box, IconButton } from "@mui/material";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
+import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
 import Image from "next/image";
 import Lightbox from "@/components/UI/Lightbox";
 
-//* Main photo with round "swatch" thumbnails (Pawvelle colour-swatch hero) and a full-screen viewer
-const PetGallery = ({ photos, name }: { photos: string[]; name: string }) => {
+//* Main photo/video with round "swatch" thumbnails (Pawvelle colour-swatch hero) and a full-screen photo viewer.
+//* Photos come first (cover photo at index 0), then videos (PetMedia type VIDEO).
+const PetGallery = ({ photos, videos = [], name }: { photos: string[]; videos?: string[]; name: string }) => {
   const [active, setActive] = useState(0);
   const [viewer, setViewer] = useState<number | null>(null);
-  const list = photos.length ? photos : [];
+  const items = [...photos.map((src) => ({ src, video: false })), ...videos.map((src) => ({ src, video: true }))];
+  const current = items[active];
+
+  const frameSx = {
+    position: "relative",
+    display: "block",
+    width: "100%",
+    p: 0,
+    border: 0,
+    aspectRatio: { xs: "4 / 3.4", md: "16 / 11" },
+    borderRadius: "var(--pf-radius-card)",
+    overflow: "hidden",
+    bgcolor: "var(--pf-sand)",
+  } as const;
 
   return (
     <Box>
-      <Box
-        component="button"
-        type="button"
-        onClick={() => list.length && setViewer(active)}
-        aria-label={`Open ${name}'s photos full screen`}
-        sx={{
-          position: "relative",
-          display: "block",
-          width: "100%",
-          p: 0,
-          border: 0,
-          cursor: "zoom-in",
-          aspectRatio: { xs: "4 / 3.4", md: "16 / 11" },
-          borderRadius: "var(--pf-radius-card)",
-          overflow: "hidden",
-          bgcolor: "var(--pf-sand)",
-          "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 3 },
-        }}
-      >
-        {list[active] && (
-          <Image
-            key={list[active]}
-            src={list[active]}
-            alt={`${name}, photo ${active + 1}`}
-            fill
-            priority
-            sizes="(max-width: 900px) 100vw, 65vw"
-            className="pf-fade-up"
-            style={{ objectFit: "cover" }}
+      {current?.video ? (
+        <Box sx={frameSx}>
+          <Box
+            component="video"
+            key={current.src}
+            src={current.src}
+            controls
+            playsInline
+            preload="metadata"
+            aria-label={`${name}, video`}
+            sx={{ width: "100%", height: "100%", objectFit: "cover", display: "block", bgcolor: "common.black" }}
           />
-        )}
-        <IconButton
-          component="span"
-          aria-hidden
-          tabIndex={-1}
-          sx={{ position: "absolute", right: 16, bottom: 16, bgcolor: "background.paper", color: "text.primary", pointerEvents: "none" }}
+        </Box>
+      ) : (
+        <Box
+          component="button"
+          type="button"
+          onClick={() => photos.length && setViewer(active)}
+          aria-label={`Open ${name}'s photos full screen`}
+          sx={{
+            ...frameSx,
+            cursor: "zoom-in",
+            "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 3 },
+          }}
         >
-          <OpenInFullIcon fontSize="small" />
-        </IconButton>
-      </Box>
+          {current && (
+            <Image
+              key={current.src}
+              src={current.src}
+              alt={`${name}, photo ${active + 1}`}
+              fill
+              priority
+              sizes="(max-width: 900px) 100vw, 65vw"
+              className="pf-fade-up"
+              style={{ objectFit: "cover" }}
+            />
+          )}
+          <IconButton
+            component="span"
+            aria-hidden
+            tabIndex={-1}
+            sx={{ position: "absolute", right: 16, bottom: 16, bgcolor: "background.paper", color: "text.primary", pointerEvents: "none" }}
+          >
+            <OpenInFullIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      )}
 
-      {list.length > 1 && (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 2 }} role="tablist" aria-label="Photos">
-          {list.map((src, i) => (
+      {items.length > 1 && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 2, flexWrap: "wrap" }} role="tablist" aria-label="Photos and videos">
+          {items.map((item, i) => (
             <Box
-              key={src}
+              key={item.src}
               component="button"
               role="tab"
               aria-selected={i === active}
-              aria-label={`Show photo ${i + 1}`}
+              aria-label={item.video ? `Play video ${i - photos.length + 1}` : `Show photo ${i + 1}`}
               onClick={() => setActive(i)}
               sx={(t) => ({
                 position: "relative",
@@ -74,6 +96,10 @@ const PetGallery = ({ photos, name }: { photos: string[]; name: string }) => {
                 p: 0,
                 border: 0,
                 cursor: "pointer",
+                display: "grid",
+                placeItems: "center",
+                bgcolor: "var(--pf-sand)",
+                color: "text.primary",
                 boxShadow: i === active ? `0 0 0 3px ${t.vars.palette.background.default}, 0 0 0 5px ${t.vars.palette.secondary.main}` : "none",
                 opacity: i === active ? 1 : 0.75,
                 transition: "opacity .2s ease, box-shadow .2s ease, transform .2s ease",
@@ -81,13 +107,13 @@ const PetGallery = ({ photos, name }: { photos: string[]; name: string }) => {
                 "&:focus-visible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 6 },
               })}
             >
-              <Image src={src} alt="" fill sizes="64px" style={{ objectFit: "cover" }} />
+              {item.video ? <PlayCircleOutlineIcon /> : <Image src={item.src} alt="" fill sizes="64px" style={{ objectFit: "cover" }} />}
             </Box>
           ))}
         </Box>
       )}
 
-      <Lightbox images={list.map((src, i) => ({ src, alt: `${name}, photo ${i + 1}` }))} index={viewer} onChange={setViewer} />
+      <Lightbox images={photos.map((src, i) => ({ src, alt: `${name}, photo ${i + 1}` }))} index={viewer} onChange={setViewer} />
     </Box>
   );
 };

@@ -96,6 +96,11 @@ export const drawerItems = (role: UserRole): DrawerItem[] => {
           icon: ManageHistoryIcon,
         },
         {
+          title: "My Visits",
+          path: `${role}/visits`,
+          icon: EventAvailableOutlinedIcon,
+        },
+        {
           title: "Saved Pets",
           path: `${role}/favorites`,
           icon: FavoriteBorderIcon,
@@ -123,10 +128,12 @@ export const drawerItems = (role: UserRole): DrawerItem[] => {
       );
       break;
 
-    //* owners and shelters share the same dashboard under /dashboard/shelter
+    //* owners and shelters share /dashboard/shelter; only shelters (and their staff) get the Team page
     case USER_ROLE.SHELTER:
-    case USER_ROLE.OWNER: {
+    case USER_ROLE.OWNER:
+    case USER_ROLE.SHELTER_MEMBER: {
       const base = "shelter";
+      const hasTeam = role !== USER_ROLE.OWNER;
       roleMenus.push(
         { title: "Overview", path: base, icon: DashboardIcon },
         { title: "My Listings", path: `${base}/listings`, icon: PetsIcon },
@@ -134,7 +141,7 @@ export const drawerItems = (role: UserRole): DrawerItem[] => {
         { title: "Visits", path: `${base}/visits`, icon: EventAvailableOutlinedIcon },
         { title: "Success Stories", path: `${base}/stories`, icon: AutoStoriesOutlinedIcon },
         { title: "Messages", path: `${base}/messages`, icon: ChatBubbleOutlineIcon },
-        { title: "Team", path: `${base}/members`, icon: GroupAddIcon },
+        ...(hasTeam ? [{ title: "Team", path: `${base}/members`, icon: GroupAddIcon }] : []),
         { title: "Plan & Billing", path: `${base}/billing`, icon: CreditCardIcon }
       );
       break;

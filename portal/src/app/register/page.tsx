@@ -3,12 +3,13 @@
 import PetFrom from "@/components/Forms/PetForm";
 import PetInput from "@/components/Forms/PetInput";
 import Meta from "@/components/Meta/MetaData";
-import { userLogin } from "@/services/actions/loginUsers";
+import { dashboardPathForRole, userLogin } from "@/services/actions/loginUsers";
 import { registerUsers } from "@/services/actions/registeUsers";
 import { storeUserInfo } from "@/services/auth.services";
-import { IRegisterUser } from "@/types";
+import { IRegisterUser, RegisterRole } from "@/types";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Box, Button, Grid, Stack, Typography } from "@mui/material";
+import { Box, Button, Grid, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import { useState } from "react";
 import AuthAside from "@/components/Shared/AuthAside";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -36,8 +37,15 @@ const defaultValues = {
   address: "",
 };
 
+const accountTypes: { value: RegisterRole; label: string; hint: string }[] = [
+  { value: "USER", label: "Adopter", hint: "Find and adopt a pet" },
+  { value: "OWNER", label: "Pet owner", hint: "Rehome your own pet" },
+  { value: "SHELTER", label: "Shelter", hint: "List pets for your organisation" },
+];
+
 const RegisterPage = () => {
   const router = useRouter();
+  const [role, setRole] = useState<RegisterRole>("USER");
 
   const handleRegister = async (values: FieldValues) => {
     const { password, confirmPass, name, email, contactNumber, address } =
@@ -49,6 +57,7 @@ const RegisterPage = () => {
       password,
       contactNumber,
       address,
+      role,
     };
 
     if (password !== confirmPass) {
@@ -59,21 +68,22 @@ const RegisterPage = () => {
     if (password === confirmPass) {
       try {
         const res = await registerUsers(userData);
-        if (res?.data?.id) {
-          toast.success(res?.message);
+        if (!res?.data?.id) {
+          toast.error(res?.message || "Registration failed");
+          return;
+        }
+        toast.success(res?.message);
 
-          const result = await userLogin({
-            email,
-            password,
-          });
-          if (result?.data?.token) {
-            storeUserInfo({ accessToken: result?.data?.token });
-            router.push("/dashboard");
-          }
+        const result = await userLogin({ email, password });
+        if (result?.data?.accessToken) {
+          storeUserInfo({ accessToken: result.data.accessToken });
+          router.push(dashboardPathForRole(role));
+          router.refresh();
+        } else {
+          router.push("/login");
         }
       } catch (error: any) {
-        toast.error(error.message);
-        console.error(error.message);
+        toast.error(error?.message || "Could not reach the server");
       }
     }
   };
@@ -147,7 +157,28 @@ const RegisterPage = () => {
               defaultValues={defaultValues}
             >
               <Box sx={{ px: { xs: 2, sm: 4 } }}>
-                <Grid container spacing={2} my={2}>
+                <Typography variant="body2" fontWeight={600} mt={2} mb={1}>
+                  I want to join as
+                </Typography>
+                <ToggleButtonGroup
+                  exclusive
+                  fullWidth
+                  size="small"
+                  color="primary"
+                  value={role}
+                  onChange={(_, value: RegisterRole | null) => value && setRole(value)}
+                  aria-label="Account type"
+                >
+                  {accountTypes.map((type) => (
+                    <ToggleButton key={type.value} value={type.value} sx={{ textTransform: "none" }}>
+                      {type.label}
+                    </ToggleButton>
+                  ))}
+                </ToggleButtonGroup>
+                <Typography variant="caption" color="text.secondary">
+                  {accountTypes.find((type) => type.value === role)?.hint}
+                </Typography>
+                <Grid container spacing={2} my={1}>
                   <Grid item xs={12}>
                     <PetInput
                       name="name"

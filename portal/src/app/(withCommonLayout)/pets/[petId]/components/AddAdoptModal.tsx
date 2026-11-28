@@ -36,16 +36,12 @@ const AddAdoptModal = ({ open, setOpen, petId }: TProps) => {
         ...others,
       };
 
-      const res = await createAdoptionRequest(data);
-      // console.log(res);
-      if (res.data.id) {
-        toast.success("Adoption request submitted successfully!");
-        setOpen(false);
-      }
-
+      await createAdoptionRequest(data).unwrap();
+      toast.success("Application sent! Track it under Manage Adoption in your dashboard.");
+      setOpen(false);
     } catch (error: any) {
-      toast.error(error.message);
-      console.error(error.message);
+      //* 409 = already applied, 403 = own listing, 400 = pet not open for applications
+      toast.error(error?.data?.message || "Could not submit the application");
     }
   };
 

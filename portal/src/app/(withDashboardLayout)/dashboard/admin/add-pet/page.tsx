@@ -5,11 +5,10 @@ import PetInput from "@/components/Forms/PetInput";
 import PetSelectField from "@/components/Forms/PetSelectField";
 import Meta from "@/components/Meta/MetaData";
 import { colorOptions, genderOptions, healthOptions, sizeOptions } from "@/components/Shared/SelectOptions/SelectOptions";
-import { useCreatePetMutation } from "@/redux/api/petApi";
-import { useGetMyProfileQuery } from "@/redux/api/userApi";
+import { useCreateListingMutation } from "@/redux/api/listingApi";
+import { runMutation } from "@/utils/dashboardHelpers";
 import { Box, Button, Container, Grid, Typography } from "@mui/material";
 import { FieldValues } from "react-hook-form";
-import { toast } from "sonner";
 
 // const petValidationSchema = z.object({
 //   name: z.string().min(1, "Please enter the pet's name!"),
@@ -31,27 +30,12 @@ import { toast } from "sonner";
 // });
 
 const AddPetPage = () => {
-  const { data } = useGetMyProfileQuery({});
-  const [createPet, { isLoading }] = useCreatePetMutation();
+  const [createPet, { isLoading }] = useCreateListingMutation();
 
   const handleSubmit = async (values: FieldValues) => {
-    // console.log(values);
-    try {
-      const petData = {
-        userId: data.id,
-        ...values,
-        age: Number(values.age),
-      };
-
-      const res = await createPet(petData);
-      // console.log(res);
-      if (res.data.id) {
-        toast.success("Pet created successfully!");
-      }
-    } catch (error: any) {
-      toast.error(error.message);
-      console.error(error.message);
-    }
+    //* The API sets the owner from the token; admins publish directly
+    const petData = { ...values, age: Number(values.age), status: "PUBLISHED" };
+    await runMutation(createPet(petData), "Pet created successfully!");
   };
   return (
     <>
