@@ -117,6 +117,10 @@ const resetPassword = async (rawToken: string, payload: { id: string; password: 
   } catch {
     throw new ApiError(httpStatus.UNAUTHORIZED, "Reset link is invalid or has expired.");
   }
+  //* Don't rely on secrets being distinct: only a reset-password token may reset
+  if (decoded.purpose !== "reset-password") {
+    throw new ApiError(httpStatus.UNAUTHORIZED, "Reset link is invalid or has expired.");
+  }
   if (decoded.userId !== payload.id) {
     throw new ApiError(httpStatus.FORBIDDEN, "Forbidden! Token is invalid for this user.");
   }
