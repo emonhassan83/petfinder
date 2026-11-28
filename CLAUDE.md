@@ -16,7 +16,7 @@ Server (`cd server`):
 - `npm run build` — `tsc` to `dist/`; `npm start` runs `dist/server.js`
 - `npx tsc --noEmit` — type check
 - `npx prisma migrate dev --name <name>` / `npx prisma generate` / `npx prisma studio` — schema in `server/prisma/schema.prisma` (`postinstall` runs `prisma generate`)
-- `npm test` — Jest + Supertest critical/security suite in `server/tests/` against the separate `petfinder_test` DB (setup in `docs/plan.md`, Phase 5 log). Portal: `npm run test:security`.
+- `npm test` — Jest + Supertest critical/security suite in `server/tests/` against the separate `petfinder_test` DB (setup in `docs/plan.md`, Phase 5 log). Portal: `npm run test:security`; UI/E2E: `npm run test:e2e` (Playwright, needs the API on 5080 with seed data and raised dev rate limits; details in `docs/plan.md`).
 - Local dev (this machine): API on port 5080 (5000 is taken), DB is Docker Postgres `petfinder-pg` on 5499; `prisma migrate` runs through the `petfinder-prisma-cli` container (see `docs/plan.md`, Phase 3a log).
 
 Client (`cd client`):
