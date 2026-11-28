@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import Animated, { LinearTransition } from "react-native-reanimated";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { colors } from "../theme";
 import { fetchFavorites } from "../api/api";
@@ -33,14 +34,16 @@ export const FavoritesScreen = () => {
   const items = (data ?? []).filter((p) => favorites.includes(p.id));
   return (
     <View style={styles.screen}>
-      <FlatList
+      <Animated.FlatList
         data={items}
         keyExtractor={(p) => p.id}
+        //* Un-hearted cards fade out (PetCard exiting) and the rest slide up into place
+        itemLayoutAnimation={LinearTransition.springify().damping(20)}
         contentContainerStyle={{ padding: 16, flexGrow: 1 }}
         refreshing={loading}
         onRefresh={reload}
         ListEmptyComponent={<EmptyView title="No saved pets yet" text="Tap the heart on a pet to save it here." />}
-        renderItem={({ item }) => <PetCard pet={item} onPress={() => nav.navigate("PetDetail", { id: item.id })} />}
+        renderItem={({ item, index }) => <PetCard pet={item} index={index} onPress={() => nav.navigate("PetDetail", { id: item.id })} />}
       />
     </View>
   );

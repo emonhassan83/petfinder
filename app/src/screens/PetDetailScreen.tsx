@@ -1,5 +1,15 @@
-import React, { useRef, useState } from "react";
-import { Alert, Animated, Pressable, Share, StyleSheet, View } from "react-native";
+import React, { useState } from "react";
+import { Alert, Pressable, Share, StyleSheet, View } from "react-native";
+import Animated, {
+  Extrapolation,
+  FadeInUp,
+  interpolate,
+  LinearTransition,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  ZoomIn,
+} from "react-native-reanimated";
 import { Text } from "../components/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -28,7 +38,17 @@ export const PetDetailScreen = ({ route, navigation }: any) => {
   const [costOpen, setCostOpen] = useState(false);
   const [adoptOpen, setAdoptOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
-  const scrollY = useRef(new Animated.Value(0)).current;
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
+  //* Parallax: the photo moves slower than the sheet and stretches on pull-down (runs on the UI thread)
+  const heroStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: interpolate(scrollY.value, [-HERO, 0, HERO], [-HERO / 2, 0, HERO * 0.4]) },
+      { scale: interpolate(scrollY.value, [-HERO, 0], [2, 1], Extrapolation.CLAMP) },
+    ],
+  }));
 
   const pet = petState.data;
   if (!pet) {
@@ -58,19 +78,11 @@ export const PetDetailScreen = ({ route, navigation }: any) => {
     }
   };
 
-  //* Parallax: the photo moves slower than the sheet and stretches on pull-down
-  const heroStyle = {
-    transform: [
-      { translateY: scrollY.interpolate({ inputRange: [-HERO, 0, HERO], outputRange: [-HERO / 2, 0, HERO * 0.4] }) },
-      { scale: scrollY.interpolate({ inputRange: [-HERO, 0], outputRange: [2, 1], extrapolateRight: "clamp" }) },
-    ],
-  };
-
   return (
     <View style={{ flex: 1, backgroundColor: colors.white }}>
       <Animated.ScrollView
         scrollEventThrottle={16}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+        onScroll={onScroll}
         contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
       >
@@ -78,12 +90,12 @@ export const PetDetailScreen = ({ route, navigation }: any) => {
           <Image source={pet.photos[photo] ?? pet.image ? { uri: pet.photos[photo] ?? pet.image } : undefined} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} accessibilityLabel={pet.name} />
           <View style={styles.dots}>
             {pet.photos.map((_, i) => (
-              <View key={i} style={[styles.dot, i === photo && styles.dotOn]} />
+              <Animated.View key={i} layout={LinearTransition.duration(220)} style={[styles.dot, i === photo && styles.dotOn]} />
             ))}
           </View>
         </Animated.View>
 
-        <View style={styles.sheet}>
+        <Animated.View entering={FadeInUp.delay(80).springify().damping(20)} style={styles.sheet}>
           <View style={styles.swatches}>
             {pet.photos.map((uri, i) => (
               <Pressable
@@ -163,11 +175,11 @@ export const PetDetailScreen = ({ route, navigation }: any) => {
 
           <Text style={[styles.section]}>All {pronoun} needs from you is</Text>
           <View style={styles.needs}>
-            {needs.map((n) => (
-              <View key={n.key} style={[styles.need, { backgroundColor: n.bg }]}>
+            {needs.map((n, i) => (
+              <Animated.View key={n.key} entering={ZoomIn.delay(300 + i * 80).springify().damping(14)} style={[styles.need, { backgroundColor: n.bg }]}>
                 <MaterialCommunityIcons name={n.icon} size={24} color={n.fg} />
                 <Text style={[styles.needText, { color: n.fg }]}>{n.key}</Text>
-              </View>
+              </Animated.View>
             ))}
           </View>
 
@@ -203,7 +215,7 @@ export const PetDetailScreen = ({ route, navigation }: any) => {
           <Pressable onPress={onReport} accessibilityRole="button">
             <Text style={styles.report}>Report this listing</Text>
           </Pressable>
-        </View>
+        </Animated.View>
       </Animated.ScrollView>
 
       {/* Floating back button */}

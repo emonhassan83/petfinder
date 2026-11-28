@@ -1,5 +1,6 @@
-import React, { useRef } from "react";
-import { Animated, Pressable, StyleSheet, View } from "react-native";
+import React from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import Animated, { FadeInDown, FadeOut, useAnimatedStyle, useSharedValue, withSequence, withSpring } from "react-native-reanimated";
 import { Text } from "./Text";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,28 +21,33 @@ export const GenderIcon = ({ gender, size = 18 }: { gender: Pet["gender"]; size?
 export const ageLabel = (age: number) => (age < 1 ? "Under 1 year" : `${age} ${age === 1 ? "year" : "years"}`);
 
 //* Photo card with an overlapping white info panel (design: "Needing your affection").
-export const PetCard = ({ pet, onPress, width }: { pet: Pet; onPress: () => void; width?: number }) => {
+//* `index` staggers the entry animation when cards appear in a list.
+export const PetCard = ({ pet, onPress, width, index = 0 }: { pet: Pet; onPress: () => void; width?: number; index?: number }) => {
   const { favorites, toggleFavorite } = useAppState();
   const fav = favorites.includes(pet.id);
-  const scale = useRef(new Animated.Value(1)).current;
-  const heart = useRef(new Animated.Value(1)).current;
+  const scale = useSharedValue(1);
+  const heart = useSharedValue(1);
 
-  const press = (to: number) => Animated.spring(scale, { toValue: to, useNativeDriver: true, speed: 30, bounciness: 6 }).start();
+  const cardStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const heartStyle = useAnimatedStyle(() => ({ transform: [{ scale: heart.value }] }));
 
   const onHeart = () => {
     toggleFavorite(pet.id);
-    Animated.sequence([
-      Animated.spring(heart, { toValue: 1.35, useNativeDriver: true, speed: 50 }),
-      Animated.spring(heart, { toValue: 1, useNativeDriver: true, speed: 20 }),
-    ]).start();
+    heart.value = withSequence(withSpring(1.35, { duration: 160 }), withSpring(1, { duration: 320 }));
   };
 
   return (
-    <Animated.View style={[{ width, transform: [{ scale }] }, styles.wrap]}>
+    //* Entry/exit live on the outer view; the press scale lives on the inner one so they never fight
+    <Animated.View
+      entering={FadeInDown.delay(Math.min(index, 8) * 70).springify().damping(18)}
+      exiting={FadeOut.duration(200)}
+      style={[{ width }, styles.wrap]}
+    >
+    <Animated.View style={cardStyle}>
       <Pressable
         onPress={onPress}
-        onPressIn={() => press(0.97)}
-        onPressOut={() => press(1)}
+        onPressIn={() => (scale.value = withSpring(0.97, { duration: 180 }))}
+        onPressOut={() => (scale.value = withSpring(1, { duration: 260 }))}
         accessibilityRole="button"
         accessibilityLabel={`View ${pet.name}`}
       >
@@ -67,12 +73,13 @@ export const PetCard = ({ pet, onPress, width }: { pet: Pet; onPress: () => void
             accessibilityLabel={fav ? "Remove from favorites" : "Save to favorites"}
             style={styles.heart}
           >
-            <Animated.View style={{ transform: [{ scale: heart }] }}>
+            <Animated.View style={heartStyle}>
               <Ionicons name={fav ? "heart" : "heart-outline"} size={18} color={colors.primary} />
             </Animated.View>
           </Pressable>
         </View>
       </Pressable>
+    </Animated.View>
     </Animated.View>
   );
 };

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, FlatList, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
+import { FlatList, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
+import Animated, { FadeIn, FadeInDown, FadeInRight, FadeOutUp, LinearTransition } from "react-native-reanimated";
 import { Text, TextInput } from "../components/Text";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -39,11 +40,6 @@ export const DiscoverScreen = () => {
   const [term, setTerm] = useState("");
   const [colour, setColour] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  const fade = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(fade, { toValue: 1, duration: 450, useNativeDriver: true }).start();
-  }, [fade]);
 
   //* Debounce the search box so we do not hit the API on every keystroke
   useEffect(() => {
@@ -102,10 +98,10 @@ export const DiscoverScreen = () => {
 
   return (
     <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: colors.white }}>
-      <Animated.View style={{ flex: 1, opacity: fade, transform: [{ translateY: fade.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>
+      <Animated.View entering={FadeIn.duration(450)} style={{ flex: 1 }}>
         <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* Header */}
-          <View style={styles.header}>
+          <Animated.View entering={FadeInDown.duration(500)} layout={LinearTransition.springify().damping(20)} style={styles.header}>
             <View style={styles.titleRow}>
               <View>
                 <Text style={styles.hello}>{user ? `Hello, ${user.name.split(" ")[0]}` : "Hello there,"}</Text>
@@ -144,7 +140,7 @@ export const DiscoverScreen = () => {
             </View>
 
             {showFilters && (
-              <View style={styles.filters}>
+              <Animated.View entering={FadeInDown.duration(250)} exiting={FadeOutUp.duration(180)} style={styles.filters}>
                 {["Dog", "Cat"].map((s) => (
                   <Chip key={s} label={s} on={prefs.species.includes(s)} onPress={() => toggle("species", s)} />
                 ))}
@@ -157,12 +153,12 @@ export const DiscoverScreen = () => {
                 <Pressable onPress={() => nav.navigate("Onboarding")} accessibilityRole="button">
                   <Text style={styles.link}>More preferences</Text>
                 </Pressable>
-              </View>
+              </Animated.View>
             )}
-          </View>
+          </Animated.View>
 
-          {/* Soft grey sheet */}
-          <View style={styles.sheet}>
+          {/* Soft grey sheet: slides with the header when the filter panel opens/closes */}
+          <Animated.View entering={FadeInDown.delay(120).duration(550)} layout={LinearTransition.springify().damping(20)} style={styles.sheet}>
             <Text style={styles.section}>Needing your affection</Text>
             <FlatList
               horizontal
@@ -173,7 +169,7 @@ export const DiscoverScreen = () => {
               decelerationRate="fast"
               contentContainerStyle={{ paddingHorizontal: 20, gap: 16 }}
               ListEmptyComponent={<View style={{ width: width - 40 }}><RowState loading={petsLoading} error={petsError} empty="No pets match. Try another filter." onRetry={() => loadPets(1)} /></View>}
-              renderItem={({ item }) => <PetCard pet={item} width={width * 0.66} onPress={() => open(item.id)} />}
+              renderItem={({ item, index }) => <PetCard pet={item} index={index} width={width * 0.66} onPress={() => open(item.id)} />}
             />
 
             <View style={styles.sectionRow}>
@@ -189,10 +185,10 @@ export const DiscoverScreen = () => {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: 20, gap: 14, paddingBottom: 8 }}
               ListEmptyComponent={<View style={{ width: width - 40 }}><RowState loading={storiesState.loading} error={storiesState.error} empty="Adoption stories will appear here." onRetry={storiesState.reload} /></View>}
-              renderItem={({ item }) => (
-                <View style={{ width: 170 }}>
+              renderItem={({ item, index }) => (
+                <Animated.View entering={FadeInRight.delay(Math.min(index, 6) * 70).springify().damping(18)} style={{ width: 170 }}>
                   <StoryCard story={item} height={150} onPress={() => nav.navigate("Stories", { id: item.id })} />
-                </View>
+                </Animated.View>
               )}
             />
 
@@ -204,8 +200,8 @@ export const DiscoverScreen = () => {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: 20, gap: 14, paddingBottom: 8 }}
               ListEmptyComponent={<View style={{ width: width - 40 }}><RowState loading={sheltersState.loading} error={sheltersState.error} empty="No verified shelters yet." onRetry={sheltersState.reload} /></View>}
-              renderItem={({ item }) => (
-                <View style={[styles.shelter, shadow]}>
+              renderItem={({ item, index }) => (
+                <Animated.View entering={FadeInRight.delay(Math.min(index, 6) * 70).springify().damping(18)} style={[styles.shelter, shadow]}>
                   <View style={[styles.shelterLogo, { backgroundColor: colors.primaryLight }]}>
                     <Ionicons name="home" size={22} color={colors.primaryDark} />
                   </View>
@@ -217,14 +213,15 @@ export const DiscoverScreen = () => {
                       <Ionicons name="location-outline" size={12} /> {[item.location, `${item.petsCount} pets`].filter(Boolean).join(" · ")}
                     </Text>
                   </View>
-                </View>
+                </Animated.View>
               )}
             />
 
             {more.length > 0 && <Text style={styles.section}>More pets</Text>}
             <View style={{ paddingHorizontal: 20, gap: 12 }}>
-              {more.map((p) => (
-                <PetCard key={p.id} pet={p} onPress={() => open(p.id)} />
+              {more.map((p, i) => (
+                //* Stagger restarts per "Load more" page so new cards cascade in
+                <PetCard key={p.id} pet={p} index={(i + featured.length) % PAGE} onPress={() => open(p.id)} />
               ))}
               {petsError && pets.length > 0 ? <ErrorView message={petsError} onRetry={() => loadPets(page)} /> : null}
               {pets.length < total && !petsLoading ? (
@@ -234,7 +231,7 @@ export const DiscoverScreen = () => {
               ) : null}
               {petsLoading && pets.length > 0 ? <LoadingView /> : null}
             </View>
-          </View>
+          </Animated.View>
         </ScrollView>
       </Animated.View>
     </SafeAreaView>

@@ -6,6 +6,10 @@ import { Text, TextInput } from "../components/Text";
 import { Pill } from "../components/BottomSheet";
 import { colors, fonts, radius } from "../theme";
 import { useAppState } from "../state/AppState";
+import Animated, { FadeIn, FadeInDown, FadeOutUp, LinearTransition } from "react-native-reanimated";
+
+//* Fields below the register-only blocks glide into place as those blocks appear/disappear
+const formLayout = LinearTransition.springify().damping(20);
 
 //* Sign in / create account (email + password). Registration is for adopters (USER) or pet owners (OWNER); social login is out of scope.
 export const AuthScreen = () => {
@@ -43,28 +47,38 @@ export const AuthScreen = () => {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.cream }} edges={["bottom"]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={styles.wrap} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>{register ? "Create your account" : "Welcome back"}</Text>
-          <Text style={styles.sub}>{register ? "Save pets, apply to adopt and message shelters." : "Sign in to save pets, apply and chat."}</Text>
+          {/* Heading cross-fades when switching between sign in and register */}
+          <Animated.View key={mode} entering={FadeInDown.duration(350)} style={styles.group}>
+            <Text style={styles.title}>{register ? "Create your account" : "Welcome back"}</Text>
+            <Text style={styles.sub}>{register ? "Save pets, apply to adopt and message shelters." : "Sign in to save pets, apply and chat."}</Text>
+          </Animated.View>
 
           {register && (
-            <>
+            <Animated.View entering={FadeInDown.duration(300)} exiting={FadeOutUp.duration(200)} style={styles.group}>
               <View style={styles.row}>
                 <Pill label="I want to adopt" on={role === "USER"} onPress={() => setRole("USER")} />
                 <Pill label="I rehome pets" on={role === "OWNER"} onPress={() => setRole("OWNER")} />
               </View>
               <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Full name" placeholderTextColor={colors.slate} autoComplete="name" accessibilityLabel="Full name" />
-            </>
+            </Animated.View>
           )}
+          <Animated.View layout={formLayout} style={styles.group}>
           <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor={colors.slate} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoComplete="email" accessibilityLabel="Email" />
           <TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder={register ? "Password (6+ characters)" : "Password"} placeholderTextColor={colors.slate} secureTextEntry autoCapitalize="none" autoComplete={register ? "new-password" : "current-password"} accessibilityLabel="Password" onSubmitEditing={submit} />
+          </Animated.View>
           {register && (
-            <>
+            <Animated.View entering={FadeInDown.duration(300).delay(60)} exiting={FadeOutUp.duration(200)} style={styles.group}>
               <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholder="Phone (optional)" placeholderTextColor={colors.slate} keyboardType="phone-pad" accessibilityLabel="Phone" />
               <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="Address (optional)" placeholderTextColor={colors.slate} accessibilityLabel="Address" />
-            </>
+            </Animated.View>
           )}
 
-          {problem ? <Text style={styles.problem} accessibilityRole="alert">{problem}</Text> : null}
+          <Animated.View layout={formLayout} style={styles.group}>
+          {problem ? (
+            <Animated.View entering={FadeIn}>
+              <Text style={styles.problem} accessibilityRole="alert">{problem}</Text>
+            </Animated.View>
+          ) : null}
 
           <Pressable onPress={submit} disabled={!valid || busy} accessibilityRole="button" accessibilityState={{ disabled: !valid || busy }} style={[styles.cta, (!valid || busy) && { opacity: 0.5 }]}>
             <Text style={styles.ctaText}>{busy ? "Please wait..." : register ? "Create account" : "Sign in"}</Text>
@@ -73,6 +87,7 @@ export const AuthScreen = () => {
           <Pressable onPress={() => { setMode(register ? "signin" : "register"); setProblem(null); }} accessibilityRole="button" style={styles.switch}>
             <Text style={styles.switchText}>{register ? "Already have an account? Sign in" : "New here? Create an account"}</Text>
           </Pressable>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -81,6 +96,7 @@ export const AuthScreen = () => {
 
 const styles = StyleSheet.create({
   wrap: { padding: 24, gap: 14 },
+  group: { gap: 14 },
   title: { fontSize: 28, fontFamily: fonts.heading, color: colors.ink },
   sub: { color: colors.slate, marginBottom: 6 },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },

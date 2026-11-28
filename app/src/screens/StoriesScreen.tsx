@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -49,7 +50,12 @@ export const StoriesScreen = ({ route }: any) => {
       <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
         {cols.map((col, ci) => (
           <View key={ci} style={styles.col}>
-            {col.map(({ story, h }) => <StoryCard key={story.id} story={story} height={h} onPress={() => setOpen(story)} />)}
+            {col.map(({ story, h }, ri) => (
+              //* Row-major stagger across the two columns so the masonry fills in top-down
+              <Animated.View key={story.id} entering={FadeInDown.delay(Math.min(ri * 2 + ci, 10) * 70).springify().damping(18)}>
+                <StoryCard story={story} height={h} onPress={() => setOpen(story)} />
+              </Animated.View>
+            ))}
           </View>
         ))}
       </ScrollView>
